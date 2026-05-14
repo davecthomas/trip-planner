@@ -1,0 +1,946 @@
+# =============================================================================
+# San Diego → Austin · EV Road Trip
+#
+# Sample trip for the trip-planner engine. Captures the v14 spec as a
+# YAML document. Three plan variants ("Baseline", "A", "B") are maintained
+# in parallel for in-trip plan switching.
+#
+# Reusable place definitions live under `_aliases` at the top — the loader
+# drops that key before validation; the YAML parser resolves anchors at
+# parse time, so each `<<: *anchor` in a stop expands inline.
+# =============================================================================
+
+_aliases:
+  # ---------------- Endpoints ----------------
+  # Endpoints are public landmarks (City Hall to City Hall) so the sample
+  # routes to real, real-world locations without exposing anyone's home
+  # address. Swap these anchors in your own local copy for a private trip.
+  - &place_origin
+    name: "San Diego City Hall"
+    address: "202 C St, San Diego CA 92101"
+    lat: 32.7174
+    lng: -117.1628
+  - &place_dest
+    name: "Austin City Hall"
+    address: "301 W 2nd St, Austin TX 78701"
+    lat: 30.2655
+    lng: -97.7470
+
+  # ---------------- Superchargers ----------------
+  - &sc_elcentro
+    name: "El Centro Supercharger"
+    address: "3551 S Dogwood Rd, El Centro CA 92243"
+    city_hint: "El Centro CA"
+    place_id: "ChIJ7e8kLs1n14ARXaJ4irX08UY"
+    lat: 32.7608
+    lng: -115.5325
+  - &sc_yuma
+    name: "Yuma Supercharger"
+    address: "310 N Madison Ave, Yuma AZ 85364"
+    city_hint: "Yuma AZ"
+    place_id: "ChIJx6rVfNX11oARPiNURuLL4Fw"
+    lat: 32.7277
+    lng: -114.6204
+  - &sc_gila
+    name: "Gila Bend Supercharger"
+    address: "826 W Pima St, Gila Bend AZ 85337"
+    city_hint: "Gila Bend AZ"
+    place_id: "ChIJHV_CpRUv1YARf8vuV6kJE1Q"
+    lat: 32.9477
+    lng: -112.7204
+  - &sc_casa
+    name: "Casa Grande Supercharger"
+    address: "2453 E Florence Blvd, Casa Grande AZ 85194"
+    city_hint: "Casa Grande AZ"
+    place_id: "ChIJj-fFhxxnKocRokDrVERzQJA"
+    lat: 32.8929
+    lng: -111.7176
+  - &sc_tech
+    name: "Tucson Tech Park Supercharger"
+    address: "9095 S Rita Rd, Tucson AZ 85747"
+    city_hint: "Tucson AZ"
+    place_id: "ChIJt_eHI4th1oYRX4UjVvVvrY4"
+    lat: 32.1037
+    lng: -110.7984
+  - &sc_willcox
+    name: "Willcox Supercharger"
+    address: "1251 Virginia Ave, Willcox AZ 85643"
+    city_hint: "Willcox AZ"
+    place_id: "ChIJq5LXJhuc14YRIQNFYaMbMls"
+    lat: 32.2587
+    lng: -109.8407
+  - &sc_lordsburg
+    name: "Lordsburg Supercharger"
+    address: "Main St #1316, Lordsburg NM 88045"
+    city_hint: "Lordsburg NM"
+    place_id: "ChIJm-VA--EB2YYR5MNXHGRkLo8"
+    lat: 32.3469
+    lng: -108.7081
+  - &sc_lascruces
+    name: "Las Cruces Supercharger"
+    address: "W Amador Ave #2702, Las Cruces NM 88005"
+    city_hint: "Las Cruces NM"
+    place_id: "ChIJX_hZ8AEW3oYRDx1raMAn90Y"
+    lat: 32.3098
+    lng: -106.7836
+  - &sc_elpaso
+    name: "El Paso Gateway Supercharger"
+    address: "7970 Gateway Blvd E, El Paso TX 79907"
+    city_hint: "El Paso TX"
+    place_id: "ChIJ8Sroa61E54YROTnPjiFNqI8"
+    lat: 31.7423
+    lng: -106.3014
+  - &sc_vanhorn
+    name: "Van Horn Supercharger"
+    address: "W Broadway St #1807, Van Horn TX 79855"
+    city_hint: "Van Horn TX"
+    place_id: "ChIJJWimrQfm5YYRvNznGs1gEPw"
+    lat: 31.0436
+    lng: -104.8341
+  - &sc_fortstockton
+    name: "Fort Stockton Supercharger"
+    address: "2571 N Front St, Fort Stockton TX 79735"
+    city_hint: "Fort Stockton TX"
+    place_id: "ChIJ35VV-dV_8IYRu8r0d7ctbwc"
+    lat: 30.8932
+    lng: -102.8762
+  - &sc_ozona
+    name: "Ozona Supercharger"
+    address: "1307 Ave A Bldg B, Ozona TX 76943"
+    city_hint: "Ozona TX"
+    place_id: "ChIJd1k-mXKj94YRQOovphrMk0I"
+    lat: 30.7102
+    lng: -101.2014
+  - &sc_junction
+    name: "Junction Supercharger"
+    address: "2415 N Main St, Junction TX 76849"
+    city_hint: "Junction TX"
+    place_id: "ChIJIaTxlHMHWYYRx4J4NtI-7Ds"
+    lat: 30.4934
+    lng: -99.7728
+  - &sc_fredericksburg
+    name: "Fredericksburg Supercharger"
+    address: "108 S Elk St, Fredericksburg TX 78624"
+    city_hint: "Fredericksburg TX"
+    place_id: "ChIJwT7nBlnAW4YRDZ6_kQn22R4"
+    lat: 30.2741
+    lng: -98.8716
+
+  # ---------------- Hotels ----------------
+  - &hotel_tucson
+    name: "Hampton Inn & Suites Tucson Tech Park"
+    address: "9095 S Rita Rd, Tucson AZ 85747"
+    city_hint: "Tucson AZ"
+    place_id: "ChIJt_eHI4th1oYRX4UjVvVvrY4"
+    lat: 32.1031
+    lng: -110.7980
+    phone: "+1-520-989-7200"
+  - &hotel_vanhorn
+    name: "Holiday Inn Express & Suites Van Horn"
+    address: "1805 Frontage Rd, Van Horn TX 79855"
+    city_hint: "Van Horn TX"
+    place_id: "ChIJ68Y4WU3v5YYRIRXK2BgYr-U"
+    lat: 31.0398
+    lng: -104.8395
+    phone: "+1-432-283-0009"
+  - &hotel_elcentro
+    name: "Hampton Inn El Centro"
+    address: "598 E Wake Ave, El Centro CA 92243"
+    city_hint: "El Centro CA"
+    lat: 32.7861
+    lng: -115.5520
+    phone: "+1-760-352-6800"
+  - &hotel_lascruces
+    name: "TownePlace Suites by Marriott Las Cruces"
+    address: "2143 Telshor Ct, Las Cruces NM 88011"
+    city_hint: "Las Cruces NM"
+    lat: 32.3243
+    lng: -106.7402
+    phone: "+1-575-532-6500"
+  - &hotel_fortstockton
+    name: "Best Western Plus Fort Stockton Hotel"
+    address: "2115 I-10 W, Fort Stockton TX 79735"
+    city_hint: "Fort Stockton TX"
+    lat: 30.8916
+    lng: -102.9237
+    phone: "+1-432-336-7000"
+  - &hotel_yuma
+    name: "Hampton Inn & Suites Yuma"
+    address: "1600 E 16th St, Yuma AZ 85365"
+    city_hint: "Yuma AZ"
+    lat: 32.7108
+    lng: -114.6079
+    phone: "+1-928-329-5600"
+  - &hotel_elpaso
+    name: "Hampton Inn & Suites El Paso-Airport"
+    address: "6635 Gateway Blvd W, El Paso TX 79925"
+    city_hint: "El Paso TX"
+    lat: 31.7843
+    lng: -106.3417
+    phone: "+1-915-771-6644"
+
+# =============================================================================
+# Meta / vehicle
+# =============================================================================
+
+meta:
+  title: "San Diego → Austin"
+  version_label: "v14 · Tesla MYP · 69 mph"
+  agenda_label: "Full Trip Agenda · v14"
+  default_plan: "Baseline"
+  storage_prefix: "sd-austin"
+
+vehicle:
+  name: "Tesla Model Y Performance"
+  notes: "Stock aero (no roof box). 69 mph cruise + 5% drive-time allowance. ~605 lb payload."
+
+# =============================================================================
+# Plans
+# =============================================================================
+
+plans:
+
+  # ---------------------------------------------------------------------------
+  # Baseline · 3D · 2N
+  # ---------------------------------------------------------------------------
+  - key: "Baseline"
+    label: "Baseline · 3D · 2N"
+    summary: "Sat 5/23 – Mon 5/25 · ~1,340 mi · 14 charges"
+    days:
+
+      - title: "San Diego → Tucson"
+        date: "Sat 5/23"
+        stats: { miles: 433, drive: "6h 35m", charges: 5 }
+        stops:
+          - <<: *place_origin
+            type: origin
+            depart: "06:45"
+          - <<: *sc_elcentro
+            type: charge
+            leg_miles: 118
+            leg_drive: "1h 47m"
+            arrive: "08:32"
+            depart: "09:00"
+            soc_in: "52%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "breakfast"
+            restaurants:
+              - { name: "Celia's Kitchen", cuisine: "Mexican breakfast · 0.4 mi" }
+              - { name: "Olive Tree Marketplace", cuisine: "cafe · 0.6 mi" }
+          - <<: *sc_yuma
+            type: charge
+            leg_miles: 62
+            leg_drive: "0h 57m"
+            arrive: "09:57"
+            depart: "10:17"
+            soc_in: "58%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_gila
+            type: charge
+            leg_miles: 117
+            leg_drive: "1h 47m"
+            arrive: "12:04"
+            depart: "12:38"
+            soc_in: "34%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "lunch"
+            restaurants:
+              - { name: "Sofia's Mexican Food", cuisine: "sit-down · 0.3 mi" }
+          - <<: *sc_casa
+            type: charge
+            leg_miles: 75
+            leg_drive: "1h 09m"
+            arrive: "13:47"
+            depart: "14:10"
+            soc_in: "55%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_tech
+            type: charge
+            leg_miles: 61
+            leg_drive: "0h 56m"
+            arrive: "15:06"
+            depart: "15:54"
+            soc_in: "58%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW · 16 stalls"
+            meal: "coffee"
+            restaurants:
+              - { name: "Eclectic Cafe", cuisine: "cafe · 0.4 mi" }
+            notes: "On-site at the Hampton Inn — 0 mi hop to hotel."
+          - <<: *hotel_tucson
+            type: hotel
+            leg_miles: 0.1
+            leg_drive: "< 1m"
+            arrive: "15:55"
+            rating: { stars: 3, user: 4.3 }
+            rate: "~$169"
+            booking_status: "BOOKED"
+            conf_number: "EXAMPLE-1001"
+            plan_label: "Baseline"
+            check_in: "May 23 (Sat) 4:00 PM"
+            check_out: "May 24 (Sun) 11:00 AM"
+            cancel_by: "Free cancel through 22 May 2026 11:59 PM local"
+            pet_policy: "Hilton: 2 dogs ≤75 lbs each, $50/stay"
+            charger_prox: "On-site (0 min)"
+
+      - title: "Tucson → Van Horn"
+        date: "Sun 5/24"
+        stats: { miles: 437, drive: "6h 39m", charges: 5 }
+        stops:
+          - <<: *hotel_tucson
+            type: origin
+            name: "Hampton Inn Tucson Tech Park (depart)"
+            depart: "06:45"
+          - <<: *sc_willcox
+            type: charge
+            leg_miles: 67
+            leg_drive: "1h 01m"
+            arrive: "07:46"
+            depart: "08:09"
+            soc_in: "60%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_lordsburg
+            type: charge
+            leg_miles: 81
+            leg_drive: "1h 14m"
+            arrive: "09:23"
+            depart: "09:49"
+            soc_in: "52%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "coffee"
+            restaurants:
+              - { name: "Kranberry's Family Restaurant", cuisine: "diner · 0.5 mi" }
+          - <<: *sc_lascruces
+            type: charge
+            leg_miles: 115
+            leg_drive: "1h 45m"
+            arrive: "11:34"
+            depart: "12:10"
+            soc_in: "37%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "lunch"
+            restaurants:
+              - { name: "Spirit Winds Coffee Bar", cuisine: "cafe · 0.6 mi" }
+              - { name: "La Posta de Mesilla", cuisine: "Mexican sit-down · 4 mi" }
+          - <<: *sc_elpaso
+            type: charge
+            leg_miles: 52
+            leg_drive: "0h 47m"
+            arrive: "12:57"
+            depart: "13:17"
+            soc_in: "63%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_vanhorn
+            type: charge
+            leg_miles: 118
+            leg_drive: "1h 48m"
+            arrive: "15:05"
+            depart: "15:35"
+            soc_in: "37%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+            notes: "Pre-hotel charge per §4.1."
+          - <<: *hotel_vanhorn
+            type: hotel
+            leg_miles: 1.2
+            leg_drive: "0h 03m"
+            arrive: "15:38"
+            rating: { stars: 3, user: 4.3 }
+            rate: "~$135"
+            booking_status: "BOOKED"
+            conf_number: "EXAMPLE-1002"
+            plan_label: "Baseline"
+            check_in: "May 24 (Sun) 3:00 PM"
+            check_out: "May 25 (Mon) 12:00 PM"
+            cancel_by: "Verify cancel deadline in confirmation email"
+            pet_policy: "IHG: 2 pets; specific weight cap not publicly documented — verify on check-in"
+            charger_prox: "< 2 min (1.2 mi)"
+
+      - title: "Van Horn → Austin"
+        date: "Mon 5/25"
+        stats: { miles: 470, drive: "7h 09m", charges: 4 }
+        stops:
+          - <<: *hotel_vanhorn
+            type: origin
+            name: "Holiday Inn Express Van Horn (depart)"
+            depart: "06:45"
+          - <<: *sc_fortstockton
+            type: charge
+            leg_miles: 120
+            leg_drive: "1h 50m"
+            arrive: "08:35"
+            depart: "09:05"
+            soc_in: "35%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "breakfast"
+            restaurants:
+              - { name: "Comanche Land BBQ", cuisine: "BBQ sit-down · 1.1 mi" }
+          - <<: *sc_ozona
+            type: charge
+            leg_miles: 80
+            leg_drive: "1h 13m"
+            arrive: "10:18"
+            depart: "10:38"
+            soc_in: "55%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_junction
+            type: charge
+            leg_miles: 85
+            leg_drive: "1h 18m"
+            arrive: "11:56"
+            depart: "12:22"
+            soc_in: "52%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "lunch"
+            restaurants:
+              - { name: "Lum's Bar-B-Que", cuisine: "BBQ sit-down · 0.3 mi" }
+          - <<: *sc_fredericksburg
+            type: charge
+            leg_miles: 86
+            leg_drive: "1h 18m"
+            arrive: "13:40"
+            depart: "14:00"
+            soc_in: "51%"
+            soc_out: "70%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+            notes: "Lower SoC target — final leg to Austin is 80 mi."
+          - <<: *place_dest
+            type: dest
+            leg_miles: 80
+            leg_drive: "1h 13m"
+            arrive: "15:13"
+
+    verification:
+      confirmed:
+        - "Origin and destination are anonymized example addresses"
+        - "Vehicle: Tesla Model Y Performance, stock (no roof box)"
+        - "All overnight hotels reached via final-leg SC charge per §4.1"
+        - "Hampton Inn & Suites Tucson Tech Park BOOKED — Conf #EXAMPLE-1001"
+        - "Holiday Inn Express & Suites Van Horn BOOKED — Conf #EXAMPLE-1002"
+        - "All Supercharger Place IDs sourced from Google Places live data"
+      estimates:
+        - "Drive times computed at 69 mph cruise + 5% allowance"
+        - "Inbound and outbound SoC at every charging stop"
+        - "Charging session durations (vary by V2/V3 hardware and arrival SoC)"
+        - "Restaurant walking/driving times"
+        - "Illustrative nightly rates"
+      tradeoffs:
+        - "El Paso stop: 7970 Gateway Blvd E selected over Bassett Place / N Desert Blvd to keep next leg ≤125 mi cap."
+        - "Day 2 cadence: 5 charging stops to honor 110–125 mi cap; fewer/longer-charges preference yields to cap."
+        - "Tucson placement at Rita Rd (not Reid Park) shortens next-morning first leg from 83 mi to 67 mi."
+        - "Van Horn pet weight cap: Holiday Inn Express specific limit not publicly documented — verify with property at check-in."
+
+  # ---------------------------------------------------------------------------
+  # Plan A · 4D · 3N
+  # ---------------------------------------------------------------------------
+  - key: "A"
+    label: "Plan A · 4D · 3N"
+    summary: "Fri 5/22 – Mon 5/25 · ~1,274 mi · 13 charges"
+    days:
+
+      - title: "San Diego → El Centro"
+        date: "Fri 5/22"
+        stats: { miles: 121, drive: "1h 51m", charges: 1 }
+        stops:
+          - <<: *place_origin
+            type: origin
+            depart: "17:00"
+          - <<: *sc_elcentro
+            type: charge
+            leg_miles: 118
+            leg_drive: "1h 47m"
+            arrive: "18:47"
+            depart: "19:25"
+            soc_in: "52%"
+            soc_out: "90%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+            notes: "Charge to 90% — overnight buffer for next morning's long leg."
+          - <<: *hotel_elcentro
+            type: hotel
+            leg_miles: 3.2
+            leg_drive: "0h 06m"
+            arrive: "19:31"
+            rating: { stars: 3, user: 4.2 }
+            rate: "~$149"
+            booking_status: "BOOKED"
+            conf_number: "EXAMPLE-1003"
+            plan_label: "Plan A"
+            check_in: "May 22 (Fri)"
+            check_out: "May 23 (Sat)"
+            cancel_by: "Verify cancel deadline in confirmation email"
+            pet_policy: "Hilton: 2 dogs ≤75 lbs each, $75/stay, grassy relief area"
+            charger_prox: "~6 min (3.2 mi)"
+
+      - title: "El Centro → Las Cruces"
+        date: "Sat 5/23"
+        stats: { miles: 571, drive: "8h 41m", charges: 6 }
+        stops:
+          - <<: *hotel_elcentro
+            type: origin
+            name: "Hampton Inn El Centro (depart)"
+            depart: "06:45"
+          - <<: *sc_yuma
+            type: charge
+            leg_miles: 64
+            leg_drive: "0h 59m"
+            arrive: "07:44"
+            depart: "08:08"
+            soc_in: "54%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "breakfast"
+            restaurants:
+              - { name: "Brownie's Cafe", cuisine: "sit-down breakfast · 0.7 mi" }
+          - <<: *sc_gila
+            type: charge
+            leg_miles: 117
+            leg_drive: "1h 47m"
+            arrive: "09:55"
+            depart: "10:23"
+            soc_in: "34%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_casa
+            type: charge
+            leg_miles: 75
+            leg_drive: "1h 09m"
+            arrive: "11:32"
+            depart: "12:05"
+            soc_in: "55%"
+            soc_out: "90%"
+            charger_type: "V3 · 250 kW"
+            meal: "lunch"
+            restaurants:
+              - { name: "BeDillon's Restaurant", cuisine: "sit-down · 0.8 mi" }
+            notes: "Charge to 90% — next leg at upper edge of 125 mi cap."
+          - <<: *sc_willcox
+            type: charge
+            leg_miles: 130
+            leg_drive: "1h 59m"
+            arrive: "14:04"
+            depart: "14:34"
+            soc_in: "28%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+            notes: "⚠ TRADEOFF: 130 mi leg at upper edge of 125 mi cap."
+          - <<: *sc_lordsburg
+            type: charge
+            leg_miles: 81
+            leg_drive: "1h 14m"
+            arrive: "15:48"
+            depart: "16:08"
+            soc_in: "52%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_lascruces
+            type: charge
+            leg_miles: 115
+            leg_drive: "1h 45m"
+            arrive: "17:53"
+            depart: "18:42"
+            soc_in: "37%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "dinner"
+            restaurants:
+              - { name: "La Posta de Mesilla", cuisine: "Mexican sit-down · 4 mi" }
+            notes: "Pre-hotel charge per §4.1."
+          - <<: *hotel_lascruces
+            type: hotel
+            leg_miles: 6.2
+            leg_drive: "0h 10m"
+            arrive: "18:52"
+            rating: { stars: 3, user: 4.4 }
+            rate: "~$155"
+            booking_status: "BOOKED"
+            conf_number: "EXAMPLE-1004"
+            plan_label: "Plan A"
+            check_in: "May 23 (Sat)"
+            check_out: "May 24 (Sun)"
+            cancel_by: "Verify cancel deadline in confirmation email"
+            pet_policy: "Marriott: pets any size, 3 max, $25/pet/night — clean fit for two 60-lb dogs"
+            charger_prox: "~12 min (6.2 mi)"
+
+      - title: "Las Cruces → Fort Stockton"
+        date: "Sun 5/24"
+        stats: { miles: 253, drive: "3h 51m", charges: 3 }
+        stops:
+          - <<: *hotel_lascruces
+            type: origin
+            name: "TownePlace Las Cruces (depart)"
+            depart: "06:45"
+          - <<: *sc_elpaso
+            type: charge
+            leg_miles: 52
+            leg_drive: "0h 47m"
+            arrive: "07:32"
+            depart: "07:54"
+            soc_in: "65%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "breakfast"
+            restaurants:
+              - { name: "L&J Cafe", cuisine: "sit-down Mexican · 2 mi" }
+          - <<: *sc_vanhorn
+            type: charge
+            leg_miles: 118
+            leg_drive: "1h 48m"
+            arrive: "09:42"
+            depart: "10:08"
+            soc_in: "37%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_fortstockton
+            type: charge
+            leg_miles: 120
+            leg_drive: "1h 50m"
+            arrive: "11:58"
+            depart: "12:42"
+            soc_in: "35%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "lunch"
+            restaurants:
+              - { name: "Comanche Land BBQ", cuisine: "BBQ sit-down · 1.1 mi" }
+            notes: "Pre-hotel charge per §4.1. Long lunch — ~2h before 3 PM check-in."
+          - <<: *hotel_fortstockton
+            type: hotel
+            leg_miles: 3.1
+            leg_drive: "0h 06m"
+            arrive: "12:48"
+            rating: { stars: 3, user: 4.5 }
+            rate: "~$129"
+            booking_status: "BOOKED"
+            conf_number: "EXAMPLE-1005"
+            plan_label: "Plan A"
+            check_in: "May 24 (Sun) 3:00 PM"
+            check_out: "May 25 (Mon) 11:00 AM"
+            cancel_by: "Verify cancel deadline in confirmation email"
+            pet_policy: "2 dogs ≤80 lbs each, $25/pet/night, gated dog park on property"
+            charger_prox: "~6 min (3.1 mi)"
+
+      - title: "Fort Stockton → Austin"
+        date: "Mon 5/25"
+        stats: { miles: 335, drive: "5h 06m", charges: 3 }
+        stops:
+          - <<: *hotel_fortstockton
+            type: origin
+            name: "Best Western Fort Stockton (depart)"
+            depart: "06:45"
+          - <<: *sc_ozona
+            type: charge
+            leg_miles: 80
+            leg_drive: "1h 13m"
+            arrive: "07:58"
+            depart: "08:18"
+            soc_in: "55%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_junction
+            type: charge
+            leg_miles: 85
+            leg_drive: "1h 18m"
+            arrive: "09:36"
+            depart: "10:00"
+            soc_in: "52%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "breakfast"
+            restaurants:
+              - { name: "Lum's Bar-B-Que", cuisine: "BBQ sit-down · 0.3 mi" }
+          - <<: *sc_fredericksburg
+            type: charge
+            leg_miles: 86
+            leg_drive: "1h 18m"
+            arrive: "11:18"
+            depart: "11:40"
+            soc_in: "51%"
+            soc_out: "70%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+            notes: "Lower SoC target — final leg to Austin is 80 mi."
+          - <<: *place_dest
+            type: dest
+            leg_miles: 80
+            leg_drive: "1h 13m"
+            arrive: "12:53"
+
+    verification:
+      confirmed:
+        - "Origin and destination addresses"
+        - "Vehicle: Tesla Model Y Performance, stock"
+        - "All four overnight hotels reached via final-leg SC charge per §4.1"
+        - "Hampton Inn El Centro BOOKED — Conf #EXAMPLE-1003 (Fri 5/22 → Sat 5/23)"
+        - "TownePlace Suites by Marriott Las Cruces BOOKED — Conf #EXAMPLE-1004 (Sat 5/23 → Sun 5/24)"
+        - "Best Western Plus Fort Stockton Hotel BOOKED — Conf #EXAMPLE-1005 (Sun 5/24 → Mon 5/25)"
+        - "All three Plan A hotel bookings retain canonical addresses, phone numbers, and verified pet policies"
+      estimates:
+        - "Drive times computed at 69 mph + 5% allowance"
+        - "All inbound and outbound SoC values"
+        - "Charging session durations"
+        - "Restaurant times and illustrative nightly rates"
+        - "Plan A Sat departure SoC assumes overnight charge at El Centro hotel"
+      tradeoffs:
+        - "Sat is heaviest day (~12 hr elapsed including pre-hotel charge stop) — Sun acts as recovery."
+        - "Casa Grande → Willcox leg ~130 mi — at upper edge of 125 mi cap; mitigated by 90% charge at Casa Grande."
+        - "El Centro Fri arrival ~19:31 — leaves dogs in vehicle ~15 min while checking in."
+        - "Fort Stockton Sun arrival ~12:48 — well before 3 PM check-in; plan long lunch or call hotel for early check-in."
+
+  # ---------------------------------------------------------------------------
+  # Plan B · 3D · 2N (contingency — TO BOOK)
+  # ---------------------------------------------------------------------------
+  - key: "B"
+    label: "Plan B · 3D · 2N"
+    summary: "Fri 5/22 – Sun 5/24 · ~1,362 mi · 14 charges"
+    days:
+
+      - title: "San Diego → Yuma"
+        date: "Fri 5/22"
+        stats: { miles: 182, drive: "2h 46m", charges: 2 }
+        stops:
+          - <<: *place_origin
+            type: origin
+            depart: "15:30"
+          - <<: *sc_elcentro
+            type: charge
+            leg_miles: 118
+            leg_drive: "1h 47m"
+            arrive: "17:17"
+            depart: "17:43"
+            soc_in: "52%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_yuma
+            type: charge
+            leg_miles: 62
+            leg_drive: "0h 57m"
+            arrive: "18:40"
+            depart: "19:07"
+            soc_in: "58%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "dinner"
+            restaurants:
+              - { name: "Brownie's Cafe", cuisine: "sit-down · 0.7 mi" }
+            notes: "Pre-hotel charge per §4.1."
+          - <<: *hotel_yuma
+            type: hotel
+            leg_miles: 1.8
+            leg_drive: "0h 04m"
+            arrive: "19:11"
+            rating: { stars: 3, user: 4.6 }
+            rate: "~$139"
+            booking_status: "TO BOOK"
+            plan_label: "Plan B"
+            cancel_by: "Call +1-928-329-5600 to verify pet weight cap before booking"
+            pet_policy: "Hilton default 75 lb/pet; one third-party source lists 50 lb cap — call to confirm"
+            charger_prox: "~4 min (1.8 mi)"
+
+      - title: "Yuma → El Paso"
+        date: "Sat 5/23"
+        stats: { miles: 560, drive: "8h 32m", charges: 7 }
+        stops:
+          - <<: *hotel_yuma
+            type: origin
+            name: "Hampton Inn Yuma (depart)"
+            depart: "06:45"
+          - <<: *sc_gila
+            type: charge
+            leg_miles: 117
+            leg_drive: "1h 47m"
+            arrive: "08:32"
+            depart: "08:58"
+            soc_in: "37%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "breakfast"
+            restaurants:
+              - { name: "Sofia's Mexican Food", cuisine: "sit-down · 0.3 mi" }
+          - <<: *sc_casa
+            type: charge
+            leg_miles: 75
+            leg_drive: "1h 09m"
+            arrive: "10:07"
+            depart: "10:27"
+            soc_in: "55%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_tech
+            type: charge
+            leg_miles: 63
+            leg_drive: "0h 58m"
+            arrive: "11:25"
+            depart: "12:10"
+            soc_in: "58%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW · 16 stalls"
+            meal: "lunch"
+            restaurants:
+              - { name: "Eclectic Cafe", cuisine: "cafe · 0.4 mi" }
+              - { name: "On-site at Hampton Inn Tucson Tech Park", cuisine: "optional break" }
+          - <<: *sc_willcox
+            type: charge
+            leg_miles: 67
+            leg_drive: "1h 01m"
+            arrive: "13:11"
+            depart: "13:34"
+            soc_in: "60%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_lordsburg
+            type: charge
+            leg_miles: 81
+            leg_drive: "1h 14m"
+            arrive: "14:48"
+            depart: "15:14"
+            soc_in: "52%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_lascruces
+            type: charge
+            leg_miles: 115
+            leg_drive: "1h 45m"
+            arrive: "16:59"
+            depart: "17:35"
+            soc_in: "37%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_elpaso
+            type: charge
+            leg_miles: 52
+            leg_drive: "0h 47m"
+            arrive: "18:22"
+            depart: "18:37"
+            soc_in: "63%"
+            soc_out: "80%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+            notes: "Pre-hotel charge per §4.1."
+          - <<: *hotel_elpaso
+            type: hotel
+            leg_miles: 3.0
+            leg_drive: "0h 06m"
+            arrive: "18:43"
+            rating: { stars: 3, user: 4.5 }
+            rate: "~$165"
+            booking_status: "TO BOOK"
+            plan_label: "Plan B"
+            cancel_by: "Book on the road if Plan B activated"
+            pet_policy: "Hilton: 2 dogs any size, $75/stay (1–2 nights) — best in-class pet policy"
+            charger_prox: "~6 min (3.0 mi)"
+
+      - title: "El Paso → Austin"
+        date: "Sun 5/24"
+        stats: { miles: 620, drive: "9h 27m", charges: 5 }
+        stops:
+          - <<: *hotel_elpaso
+            type: origin
+            name: "Hampton Inn El Paso (depart)"
+            depart: "06:45"
+          - <<: *sc_vanhorn
+            type: charge
+            leg_miles: 118
+            leg_drive: "1h 48m"
+            arrive: "08:33"
+            depart: "09:00"
+            soc_in: "37%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "breakfast"
+            restaurants:
+              - { name: "Chuy's Restaurant", cuisine: "Tex-Mex sit-down · 0.4 mi" }
+          - <<: *sc_fortstockton
+            type: charge
+            leg_miles: 120
+            leg_drive: "1h 50m"
+            arrive: "10:50"
+            depart: "11:18"
+            soc_in: "35%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_ozona
+            type: charge
+            leg_miles: 80
+            leg_drive: "1h 13m"
+            arrive: "12:31"
+            depart: "12:55"
+            soc_in: "55%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "lunch"
+            restaurants:
+              - { name: "Hitchin' Post Steakhouse", cuisine: "steakhouse · 0.2 mi" }
+          - <<: *sc_junction
+            type: charge
+            leg_miles: 85
+            leg_drive: "1h 18m"
+            arrive: "14:13"
+            depart: "14:37"
+            soc_in: "52%"
+            soc_out: "85%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *sc_fredericksburg
+            type: charge
+            leg_miles: 86
+            leg_drive: "1h 18m"
+            arrive: "15:55"
+            depart: "16:15"
+            soc_in: "51%"
+            soc_out: "70%"
+            charger_type: "V3 · 250 kW"
+            meal: "no meal"
+          - <<: *place_dest
+            type: dest
+            leg_miles: 80
+            leg_drive: "1h 13m"
+            arrive: "17:28"
+
+    verification:
+      confirmed:
+        - "Origin and destination addresses"
+        - "Vehicle: Tesla Model Y Performance, stock"
+        - "Both overnight hotels reached via final-leg SC charge per §4.1"
+        - "Hampton Inn & Suites El Paso-Airport: 6635 Gateway Blvd W — 2 dogs any size, 4.5★ (749 reviews)"
+        - "Hampton Inn & Suites Yuma: 1600 E 16th St, 9.2/10 Booking, ~5 min to Yuma SC"
+      estimates:
+        - "Drive times computed at 69 mph + 5% allowance"
+        - "All inbound and outbound SoC values"
+        - "Charging session durations"
+        - "Restaurant times and illustrative nightly rates"
+      tradeoffs:
+        - "⚠ HARDEST FLAG — Hampton Inn Yuma pet weight cap: one source lists 50 lb limit which would EXCLUDE 60-lb dogs. MUST call +1-928-329-5600 before booking."
+        - "Two consecutive ~12 hr elapsed days (Sat and Sun) — highest fatigue exposure of all three plans."
+        - "Van Horn → Fort Stockton on Sun lands at peak fatigue — high-headwind corridor; surface margin in Tesla nav before departure."
+        - "Sun arrival ~17:28 — comfortable margin to 19:00 cap."
+        - "Hampton El Paso on Gateway Blvd WEST vs Tesla SC on Gateway Blvd EAST — opposite frontage roads of I-10, ~3 min drive between them."

@@ -1,0 +1,474 @@
+/* =============================================================================
+ * trip-planner — embedded stylesheet
+ *
+ * Mobile-first. Light/dark via prefers-color-scheme. Type pairing: IBM Plex
+ * Sans for prose, IBM Plex Mono for metadata, tags, times, and any "data"
+ * the user is meant to scan rather than read.
+ *
+ * Tokens live in :root and dark-mode overrides at the top. The rest of the
+ * sheet only references vars — never raw colors — so a re-skin is one block.
+ * ============================================================================= */
+
+:root {
+  --bg: #f5f1e8;
+  --surface: #fffaf0;
+  --ink: #1a1815;
+  --ink-soft: #4a463f;
+  --muted: #8a847a;
+  --divider: #d9d2c2;
+  --hairline: #e6dfcc;
+  --accent: #c2410c;
+  --charge: #2563eb;
+  --hotel: #15803d;
+  --meal: #c2410c;
+  --warn: #b45309;
+  --good: #15803d;
+  --shadow: 0 1px 2px rgba(20, 15, 5, .06), 0 4px 12px rgba(20, 15, 5, .04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0c0a;
+    --surface: #16130f;
+    --ink: #f3ede0;
+    --ink-soft: #c8c1b1;
+    --muted: #7a7468;
+    --divider: #2e2a23;
+    --hairline: #25221c;
+    --accent: #f97316;
+    --charge: #60a5fa;
+    --hotel: #4ade80;
+    --meal: #fb923c;
+    --warn: #fbbf24;
+    --good: #4ade80;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 12px rgba(0, 0, 0, .3);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+/* =============================== STICKY HEADER =============================== */
+
+header.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--divider);
+  padding: 10px 14px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  box-shadow: var(--shadow);
+}
+
+.brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.brand .name {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+.brand .meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.plan-toggle, .day-toggle, .trip-toggles {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.plan-toggle { grid-template-columns: repeat(var(--plan-cols, 3), 1fr); }
+.day-toggle { grid-template-columns: repeat(var(--day-cols, 3), 1fr); }
+.trip-toggles { grid-template-columns: 1fr 1fr 1fr; margin-bottom: 0; }
+
+.toggle-btn {
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid var(--divider);
+  color: var(--ink);
+  padding: 8px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  line-height: 1.2;
+}
+.toggle-btn .sub {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+  font-weight: 400;
+}
+.toggle-btn[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--surface);
+  border-color: var(--ink);
+}
+.toggle-btn[aria-pressed="true"] .sub {
+  color: var(--surface);
+  opacity: 0.7;
+}
+.toggle-btn:hover { border-color: var(--ink-soft); }
+
+#day-maps-toggle, #full-maps-toggle, #agenda-toggle {
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid var(--divider);
+  color: var(--ink);
+  padding: 8px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  min-height: 44px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#day-maps-toggle:hover, #full-maps-toggle:hover, #agenda-toggle:hover {
+  border-color: var(--ink-soft);
+}
+#agenda-toggle.active {
+  background: var(--ink);
+  color: var(--surface);
+  border-color: var(--ink);
+}
+#day-maps-toggle .icon, #full-maps-toggle .icon, #agenda-toggle .icon {
+  font-size: 13px;
+  line-height: 1;
+}
+#day-maps-toggle .label, #full-maps-toggle .label, #agenda-toggle .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ================================== DAY VIEW ================================== */
+
+main { padding: 0; }
+
+.day-head {
+  padding: 22px 16px 14px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--hairline);
+}
+.day-eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.day-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 2px 0;
+}
+.day-date {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.day-stats {
+  display: flex;
+  gap: 18px;
+  margin-top: 10px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+}
+.day-stats .stat-label { color: var(--muted); }
+
+/* ================================ STOP CARDS ================================ */
+
+.stop-card {
+  padding: 14px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--hairline);
+}
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.card-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  margin-top: 2px;
+}
+.card-num.origin, .card-num.dest { background: var(--ink); color: var(--surface); }
+.card-num.charge { background: var(--charge); }
+.card-num.hotel  { background: var(--hotel); }
+.card-num.meal   { background: var(--meal); }
+.card-body { flex: 1; min-width: 0; }
+.card-tag {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.card-name {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.card-addr {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+.card-times {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.card-times .label { color: var(--muted); margin-right: 4px; }
+.card-meta {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.card-meta .row { display: flex; gap: 6px; }
+.card-meta .label {
+  color: var(--muted);
+  min-width: 64px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding-top: 2px;
+}
+.card-meta .val { flex: 1; }
+.soc-line { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+.soc-line .arrow { color: var(--muted); margin: 0 4px; }
+.restaurants { list-style: none; padding: 0; margin: 4px 0 0 0; }
+.restaurants li { font-size: 13px; }
+.restaurants li .cuisine { color: var(--muted); font-size: 12px; margin-left: 4px; }
+
+/* Booking block */
+.booking-block { margin-top: 8px; }
+.booking-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.booking-pill.booked  { background: rgba(21, 128, 61, 0.12); color: var(--good); }
+.booking-pill.pending { background: rgba(194, 65, 12, 0.12); color: var(--meal); }
+.booking-pill.tobook  { background: rgba(138, 132, 122, 0.18); color: var(--muted); }
+.booking-times  { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+.booking-cancel { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.pet-policy { font-size: 12px; color: var(--ink-soft); margin-top: 6px; font-style: italic; }
+
+.card-notes {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--hairline);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 5px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-primary { background: var(--ink); color: var(--surface); }
+.btn-primary:hover { opacity: 0.9; }
+.btn-secondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--divider);
+}
+.btn-secondary:hover { border-color: var(--ink-soft); }
+.btn .place-badge {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+.btn .place-badge.warn { color: var(--warn); opacity: 1; }
+.btn .place-badge.good { color: inherit; }
+
+/* ============================ VERIFICATION PANEL ============================ */
+
+.verification {
+  padding: 20px 16px 24px 16px;
+  background: var(--bg);
+}
+.verification h3 {
+  font-size: 13px;
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 16px 0 8px 0;
+}
+.verification .group {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 6px;
+}
+.verification .group.confirmed { background: rgba(21, 128, 61, 0.08);  border-left: 3px solid var(--good); }
+.verification .group.estimates { background: rgba(37, 99, 235, 0.08);  border-left: 3px solid var(--charge); }
+.verification .group.tradeoffs { background: rgba(194, 65, 12, 0.08);  border-left: 3px solid var(--meal); }
+.verification .group.audit     { background: rgba(180, 83, 9, 0.08);   border-left: 3px solid var(--warn); }
+.verification .group h4 {
+  font-size: 12px;
+  font-family: "IBM Plex Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 6px 0;
+}
+.verification ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.verification li { margin-bottom: 4px; line-height: 1.4; }
+
+/* ================================ AGENDA VIEW ================================ */
+
+.agenda-cover {
+  padding: 32px 16px 20px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--divider);
+}
+.agenda-eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.agenda-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.015em;
+}
+.agenda-summary { font-size: 14px; color: var(--ink-soft); margin-bottom: 14px; }
+.agenda-totals {
+  display: flex;
+  gap: 18px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.agenda-totals .label { color: var(--muted); }
+
+.agenda-day {
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.agenda-day-title { font-size: 18px; font-weight: 600; margin: 0 0 2px 0; }
+.agenda-day-stats {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.agenda-stop {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+}
+.agenda-time {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  padding-top: 2px;
+}
+.agenda-body .stop-tag {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.agenda-body .stop-name { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.agenda-body .stop-addr { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+.agenda-body .stop-detail {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+  font-family: "IBM Plex Mono", monospace;
+}
+.leg-connector {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 6px 0 6px 82px;
+}
+.agenda-floor { padding: 20px 16px 40px 16px; text-align: center; }
+
+/* Hidden helpers */
+[hidden] { display: none !important; }

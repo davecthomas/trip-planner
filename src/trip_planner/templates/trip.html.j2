@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ meta.title }} · {{ meta.version_label }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+{{ inline_css }}
+</style>
+</head>
+<body>
+
+<header class="sticky">
+  <div class="brand">
+    <div class="name">{{ meta.title }}</div>
+    <div class="meta">{{ meta.version_label }}</div>
+  </div>
+
+  <div class="plan-toggle" style="--plan-cols: {{ plans|length }}">
+    {%- for plan in plans %}
+    <button class="toggle-btn" data-plan="{{ plan.key }}">{{ plan.label.split('·')[0]|trim }}<span class="sub">{{ plan.label.split('·')[1:]|join('·')|trim }}</span></button>
+    {%- endfor %}
+  </div>
+
+  <div class="day-toggle" id="day-toggle"></div>
+
+  <div class="trip-toggles">
+    <a id="day-maps-toggle" href="#" target="_blank" rel="noopener"><span class="icon">↗</span><span class="label">Day 1 in Maps</span></a>
+    <a id="full-maps-toggle" href="#" target="_blank" rel="noopener"><span class="icon">↗</span><span class="label">Full Trip in Maps</span></a>
+    <button id="agenda-toggle"><span class="icon">☰</span><span class="label">Full Trip Agenda</span></button>
+  </div>
+</header>
+
+<main>
+  <section id="day-view"></section>
+  <section id="agenda-view" hidden></section>
+</main>
+
+<script>
+window.__TRIP__ = {{ trip_json }};
+</script>
+<script>
+{{ inline_js }}
+</script>
+
+</body>
+</html>
