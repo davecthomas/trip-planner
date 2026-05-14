@@ -1,7 +1,17 @@
 # Project-specific
 samples/
-build/
+renders/
 .venv/
+
+# Personal trip specs — keep PII (real addresses, hotel confirmations,
+# phone numbers) out of git. Only the sanitized public sample is tracked,
+# plus a .gitkeep so trips/private/ exists for fresh clones.
+trips/*
+!trips/sd_austin.yaml
+!trips/.gitkeep
+!trips/private/
+trips/private/*
+!trips/private/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -13,7 +23,6 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
 develop-eggs/
 dist/
 downloads/
@@ -156,3 +165,15 @@ cython_debug/
 # OS
 .DS_Store
 Thumbs.db
+
+# agentmemory-managed local repo wiring and state
+# Added by the agentmemory SessionStart/bootstrap flow.
+# Do not edit this block manually; rerun the installer from your agentmemory checkout and reopen an agent session if needed.
+.githooks/
+.codex/local/
+.claude/local/
+.claude/settings.local.json
+.agents/memory/pending/
+.agents/memory/state/
+.agents/memory/logs/
+.agents/memory/.auto_bootstrap_running

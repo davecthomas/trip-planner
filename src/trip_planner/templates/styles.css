@@ -293,6 +293,26 @@ main { padding: 0; }
 .restaurants li { font-size: 13px; }
 .restaurants li .cuisine { color: var(--muted); font-size: 12px; margin-left: 4px; }
 
+/* §3.4 AC conservation indicator — amber row inline within .card-meta on a
+   departure-side charge stop. Mirrors the Tradeoffs accent treatment. */
+.card-meta .row.ac-indicator {
+  background: rgba(180, 83, 9, 0.10);
+  border-left: 3px solid var(--warn);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  align-items: flex-start;
+}
+.card-meta .row.ac-indicator .label {
+  color: var(--warn);
+  min-width: 36px;
+  padding-top: 1px;
+}
+.card-meta .row.ac-indicator .val {
+  color: var(--ink);
+  line-height: 1.45;
+}
+
 /* Booking block */
 .booking-block { margin-top: 8px; }
 .booking-pill {

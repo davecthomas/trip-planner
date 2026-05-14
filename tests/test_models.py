@@ -215,10 +215,40 @@ def test_booking_status_to_book_value() -> None:
 
 
 def test_sample_spec_loads(sample_trip: Trip) -> None:
-    assert sample_trip.meta.default_plan == "Baseline"
-    assert {p.key for p in sample_trip.plans} == {"Baseline", "A", "B"}
+    assert sample_trip.meta.default_plan == "A"
+    assert {p.key for p in sample_trip.plans} == {"A", "B", "C"}
 
 
 def test_sample_spec_plan_day_counts(sample_trip: Trip) -> None:
     days_by_plan = {p.key: len(p.days) for p in sample_trip.plans}
-    assert days_by_plan == {"Baseline": 3, "A": 4, "B": 3}
+    assert days_by_plan == {"A": 3, "B": 4, "C": 3}
+
+
+def test_sample_plans_have_taglines(sample_trip: Trip) -> None:
+    """Tagline drives the plan-button sub-label; every plan should set one."""
+    for p in sample_trip.plans:
+        assert p.tagline, f"plan {p.key} missing tagline"
+
+
+def test_sample_vehicle_envelope_complete(sample_trip: Trip) -> None:
+    """The §3.4 indicator requires the full envelope set. Spot-check."""
+    v = sample_trip.vehicle
+    assert v is not None
+    assert v.baseline_wh_per_mi > 0
+    assert v.ac_penalty_wh_per_mi >= 0
+    assert v.usable_pack_kwh > 0
+    assert v.climb_kwh_per_1000ft > 0
+    assert 0 <= v.regen_recovery <= 1
+    assert 0 <= v.ac_indicator_arrival_threshold_pct <= 100
+    assert v.ac_indicator_min_improvement_pp >= 0
+
+
+def test_sample_stops_have_elevations(sample_trip: Trip) -> None:
+    """Every stop in the sample carries elevation_ft so the §3.4 indicator works."""
+    missing: list[str] = []
+    for p in sample_trip.plans:
+        for d in p.days:
+            for s in d.stops:
+                if s.elevation_ft is None:
+                    missing.append(f"{p.key}/{d.title}/{s.name}")
+    assert not missing, f"stops missing elevation_ft: {missing[:5]}"

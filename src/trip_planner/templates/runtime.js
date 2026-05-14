@@ -7,8 +7,12 @@
  *   {
  *     meta:           { title, versionLabel, agendaLabel, defaultPlan,
  *                       storagePrefix },
- *     vehicle:        { name, notes } | null,
- *     plans:          [ { key, label, summary, days:[...], verification:{} }, ... ],
+ *     vehicle:        { name, baselineWhPerMi, acPenaltyWhPerMi,
+ *                       acWindowStart, acWindowEnd, climbKwhPer1000ft,
+ *                       usablePackKwh, acIndicatorArrivalThresholdPct,
+ *                       acIndicatorMinImprovementPp, ... } | null,
+ *     plans:          [ { key, label, summary, tagline?, days:[...],
+ *                          verification:{} }, ... ],
  *     dayLabels:      { <planKey>: [ { n, label, sub }, ... ], ... },
  *   }
  *
@@ -41,6 +45,7 @@
 
   const DAY_LABELS = DATA.dayLabels || {};
   const META = DATA.meta || {};
+  const VEHICLE = DATA.vehicle || null;
   const PLAN_KEYS = DATA.plans.map((p) => p.key);
 
   const STORE_KEYS = {
@@ -129,6 +134,79 @@
 
   function buildDayMapsUrl(planKey, dayIdx) {
     return encodeStopsAsMapsPath(TRIPS[planKey].days[dayIdx].stops);
+  }
+
+  /* ===================================================================
+   * §3.4 — AC CONSERVATION INDICATOR
+   *
+   * Render-time computed badge on departure-side charge stop cards. Fires
+   * when the projected arrival SoC at the next stop (using the §3.3
+   * envelope: baseline + AC penalty if depart time in AC window +
+   * elevation penalty) is below the configured threshold AND turning AC
+   * off would widen the margin by at least the configured minimum.
+   *
+   * Mirror of `src/trip_planner/consumption.py`. Keep aligned.
+   * =================================================================== */
+
+  function _parsePct(s) {
+    if (!s) return null;
+    const m = String(s).trim().match(/^(\d+(?:\.\d+)?)\s*%$/);
+    return m ? parseFloat(m[1]) : null;
+  }
+  function _parseClock(s) {
+    if (!s) return null;
+    const m = String(s).trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return null;
+    const h = parseInt(m[1], 10), mm = parseInt(m[2], 10);
+    if (h < 0 || h > 23 || mm < 0 || mm > 59) return null;
+    return h * 60 + mm;
+  }
+
+  /**
+   * Evaluate the §3.4 indicator for one charge stop and its outbound leg.
+   * @returns {null|{fires, arrivalOn, arrivalOff}} — null when not computable.
+   */
+  function evaluateAcIndicator(current, nextStop, vehicle) {
+    if (!vehicle) return null;
+    if (!current || current.type !== "charge") return null;
+    if (!nextStop || !nextStop.legMiles || nextStop.legMiles <= 0) return null;
+
+    const socOut = _parsePct(current.socOut);
+    if (socOut === null) return null;
+
+    const depart = _parseClock(current.depart);
+    const winStart = _parseClock(vehicle.acWindowStart);
+    const winEnd = _parseClock(vehicle.acWindowEnd);
+    const acInWindow = depart !== null && winStart !== null && winEnd !== null
+      && depart >= winStart && depart < winEnd;
+
+    let climbWhPerMi = 0;
+    if (current.elevationFt != null && nextStop.elevationFt != null) {
+      const netClimb = nextStop.elevationFt - current.elevationFt;
+      if (netClimb > 0) {
+        // Note: pydantic's to_camel emits `climbKwhPer1000Ft` (capital F),
+        // not `…1000ft`. The Python field is `climb_kwh_per_1000ft`.
+        const climbKwh = (netClimb / 1000) * vehicle.climbKwhPer1000Ft;
+        climbWhPerMi = (climbKwh * 1000) / nextStop.legMiles;
+      }
+    }
+
+    const base = vehicle.baselineWhPerMi + climbWhPerMi;
+    const acPen = acInWindow ? vehicle.acPenaltyWhPerMi : 0;
+    const whOn = base + acPen;
+    const whOff = base;
+
+    const ppOn = (whOn * nextStop.legMiles / 1000) / vehicle.usablePackKwh * 100;
+    const ppOff = (whOff * nextStop.legMiles / 1000) / vehicle.usablePackKwh * 100;
+    const arrivalOn = socOut - ppOn;
+    const arrivalOff = socOut - ppOff;
+
+    const threshold = vehicle.acIndicatorArrivalThresholdPct;
+    const improvementFloor = vehicle.acIndicatorMinImprovementPp;
+    const improvement = arrivalOff - arrivalOn;
+
+    const fires = (arrivalOn < threshold) && (improvement >= improvementFloor);
+    return { fires, arrivalOn, arrivalOff };
   }
 
   /* ===================================================================
@@ -300,7 +378,7 @@
    * RENDER — day view (stop cards)
    * =================================================================== */
 
-  function renderStopCard(s, idx) {
+  function renderStopCard(s, idx, nextStop) {
     let html = '<article class="stop-card">';
     html += '<div class="card-head">';
     html += '<div class="card-num ' + s.type + '">' + (idx + 1) + "</div>";
@@ -345,6 +423,17 @@
           html += '<div style="color:var(--warn);font-size:12px;margin-top:4px">No restaurant identified — gap</div>';
         }
         html += "</span></div>";
+      }
+      // §3.4 AC conservation indicator — silent unless trigger fires.
+      const ind = evaluateAcIndicator(s, nextStop, VEHICLE);
+      if (ind && ind.fires) {
+        const acOnPct = Math.round(ind.arrivalOn);
+        const acOffPct = Math.round(ind.arrivalOff);
+        html += '<div class="row ac-indicator">' +
+          '<span class="label">⚠ AC</span>' +
+          '<span class="val">Conserve next leg: consider AC OFF. ' +
+          'Projected arrival SoC — AC on: ' + acOnPct + '% · AC off: ' + acOffPct + '%.</span>' +
+        '</div>';
       }
       html += "</div>";
     } else if (s.type === "hotel") {
@@ -392,7 +481,7 @@
     html += '<span><span class="stat-label">charges</span> ' + day.stats.charges + "</span>";
     html += "</div></div>";
 
-    html += day.stops.map((s, i) => renderStopCard(s, i)).join("");
+    html += day.stops.map((s, i) => renderStopCard(s, i, day.stops[i + 1])).join("");
     html += renderVerification(trip.verification);
     m.innerHTML = html;
   }

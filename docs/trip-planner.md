@@ -57,15 +57,44 @@ meta:
 
 All `meta` fields are required strings.
 
-### 3.2 — `vehicle` (optional but recommended)
+### 3.2 — `vehicle` (drives the consumption envelope and §3.4 indicator)
 
 ```yaml
 vehicle:
+  # Identity
   name: "Tesla Model Y Performance"
-  notes: "Stock aero, no roof box. 69 mph cruise + 5% allowance."
+  make: "Tesla"
+  model: "Model Y Performance"
+  year: 2024
+  wheels: '21" Überturbine'
+  notes: "Stock aero, no roof box. 69 mph cruise. ~605 lb payload."
+
+  # Pack + budget
+  usable_pack_kwh: 75            # usable capacity in kWh
+  reserve_soc_pct: 20             # SoC reserve on arrival to every charge
+
+  # Consumption (per §3.3 of the trip spec)
+  baseline_wh_per_mi: 330         # at cruise + payload, no AC, no climb
+  ac_penalty_wh_per_mi: 30        # added when AC is on
+  ac_window_start: "10:00"        # local time AC window opens
+  ac_window_end: "18:00"          # local time AC window closes
+  climb_kwh_per_1000ft: 2.35      # kWh to lift loaded car 1,000 ft
+  regen_recovery: 0.65            # fraction of climb energy recovered on descent
+
+  # §3.4 AC conservation indicator thresholds
+  ac_indicator_arrival_threshold_pct: 25   # fire below this projected SoC
+  ac_indicator_min_improvement_pp: 3       # AC-off must improve by ≥ this much
 ```
 
-Surfaced in verification copy when present. Not visible elsewhere by default.
+The runtime reads every consumption parameter from this block — no
+hard-coded EV constants live in the JS or CSS. To use a different EV,
+replace this block (and the per-stop `elevation_ft` values) and the
+engine produces the right behavior for the new vehicle.
+
+The full vehicle name surfaces in the sticky header's meta string when
+the YAML's `meta.version_label` references it; otherwise the vehicle
+block is consumed only by the §3.4 indicator and is not directly
+visible. `notes` is surfaced in verification copy when present.
 
 ### 3.3 — `plans`
 
@@ -73,14 +102,21 @@ A list of plan variants. Each variant is rendered as one tab in the plan toggle.
 
 ```yaml
 plans:
-  - key: "Baseline"                     # Internal key — used in state.plan, URL fragment, localStorage
-    label: "Baseline · 3D · 2N"          # Visible button label
+  - key: "A"                              # Internal key — used in state.plan, URL fragment, localStorage
+    label: "Plan A · 3D · 2N"             # Title-bar label (agenda cover, sticky-header main button text)
+    tagline: "Sat 5/23 AM departure"      # Short human-readable hint shown as the plan-button sub-label
     summary: "Sat 5/23 – Mon 5/25 · ~1,340 mi · 14 charges"
-    days: [ ... ]                        # See §3.4
-    verification: { ... }                # See §3.5
+    days: [ ... ]                         # See §3.4
+    verification: { ... }                 # See §3.5
 ```
 
 `key` must be unique across plans, ≤16 characters, alphanumeric (and `-` / `_`).
+
+`tagline` is optional. When present it replaces the days·nights segment as
+the plan-button sub-label so users can scan plans by their human-readable
+descriptor ("Sat 5/23 AM departure") rather than memorize what each letter
+means. When absent the sub-label falls back to whatever follows the first
+`·` in `label`.
 
 ### 3.4 — `days`
 
@@ -113,6 +149,7 @@ Every stop has a `type` and a small set of fields keyed by that type. The full s
 | `city_hint` | string | businesses | Disambiguation suffix for `Open in Maps` name queries (e.g. "Tucson AZ") |
 | `place_id` | string | all (optional) | Google Place ID — definitive resolver in Maps URLs when present |
 | `lat`, `lng` | number | all | Coordinates; retained for the URL-builder coord-proximity dedup |
+| `elevation_ft` | number | all (optional) | Elevation above sea level; when present at both ends of a leg the §3.4 AC indicator uses the climb delta to compute the per-leg energy penalty |
 | `leg_miles` | number | non-origin | Road-routed miles from prior stop |
 | `leg_drive` | string | non-origin | Drive time from prior stop |
 | `arrive` | string | non-origin | Local arrival time |
@@ -197,6 +234,42 @@ The day-view verification panel computes the counts per plan and surfaces:
 - The enumerated list of every fallback stop by name (or "0 stops on name-query fallback")
 
 The same function powers the inline ✓ / ⚠ badge next to every "Open in Maps" button on stop cards. A `console.warn` is also emitted on every render when fallbacks exist, naming the affected plan and stops — useful in DevTools as a live progress signal as missing Place IDs get captured over time.
+
+## 6.5 — Consumption envelope and the §3.4 AC indicator
+
+The runtime computes a per-leg consumption envelope from three inputs:
+
+1. The `vehicle` block (baseline Wh/mi, AC penalty, AC window, climb cost,
+   pack size, indicator thresholds).
+2. Each stop's `elevation_ft` — net climb on a leg drives the elevation
+   penalty.
+3. Each stop's `socOut`, `legMiles`, and `depart` time — these compose the
+   per-leg energy demand and whether the AC window applies.
+
+For every `charge` stop in the day view, the runtime evaluates the
+projected arrival SoC at the next stop under two scenarios:
+
+- **AC on:** baseline + AC penalty (if `depart` falls in the AC window)
+  + elevation penalty (if both stops carry `elevation_ft`).
+- **AC off:** baseline + elevation penalty only.
+
+The trigger fires when **both** conditions hold:
+
+- AC-on projected arrival SoC is below
+  `vehicle.ac_indicator_arrival_threshold_pct`.
+- AC-off projection improves the AC-on figure by at least
+  `vehicle.ac_indicator_min_improvement_pp` percentage points.
+
+When the trigger fires, an amber row appears inside the departure-side
+charge stop card with both projections surfaced numerically so the user
+can evaluate the actual margin. The indicator stays silent when arrival
+SoC is comfortable — no noise on well-buffered legs.
+
+The same algorithm runs in `src/trip_planner/consumption.py` as
+`evaluate_indicator(...)` so the build side can compute the indicator
+without a browser (useful for tests, the CLI, and offline reports).
+The JS implementation in `templates/runtime.js` mirrors it line-for-line;
+the two MUST be edited together.
 
 ## 7 — Customization points
 

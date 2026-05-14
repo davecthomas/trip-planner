@@ -24,17 +24,27 @@ def test_output_starts_with_doctype(rendered: str) -> None:
 
 
 def test_title_includes_version_label(rendered: str) -> None:
-    assert "<title>San Diego → Austin · v14 · Tesla MYP · 69 mph</title>" in rendered
+    assert "<title>San Diego → Austin · v15 · Tesla MYP · 69 mph</title>" in rendered
 
 
 def test_brand_and_meta_appear(rendered: str) -> None:
     assert ">San Diego → Austin<" in rendered
-    assert ">v14 · Tesla MYP · 69 mph<" in rendered
+    assert ">v15 · Tesla MYP · 69 mph<" in rendered
 
 
 def test_plan_buttons_emitted(rendered: str) -> None:
-    for key in ("Baseline", "A", "B"):
+    for key in ("A", "B", "C"):
         assert f'data-plan="{key}"' in rendered
+
+
+def test_plan_buttons_carry_taglines(rendered: str) -> None:
+    """Each plan button's sub-label is the plan's tagline, not days·nights."""
+    for tagline in (
+        "Sat 5/23 AM departure",
+        "Fri 5/22 5:00 PM departure",
+        "Fri 5/22 3:30 PM departure",
+    ):
+        assert tagline in rendered, f"missing tagline: {tagline}"
 
 
 def test_inline_css_embedded(rendered: str) -> None:
@@ -71,7 +81,7 @@ def test_trip_json_payload_is_parseable_and_camelcase(rendered: str) -> None:
     assert "storagePrefix" in payload["meta"]
     # dayLabels was added by the renderer
     assert "dayLabels" in payload
-    assert set(payload["dayLabels"].keys()) == {"Baseline", "A", "B"}
+    assert set(payload["dayLabels"].keys()) == {"A", "B", "C"}
     # Spot-check one stop's camelCase fields
     first_stop = payload["plans"][0]["days"][0]["stops"][0]
     assert "cityHint" in first_stop  # value may be None for the origin, but the key exists

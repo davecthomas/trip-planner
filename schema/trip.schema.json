@@ -1,0 +1,748 @@
+{
+  "$defs": {
+    "BookingStatus": {
+      "description": "Hotel booking state. Drives the colored pill on hotel cards.",
+      "enum": [
+        "BOOKED",
+        "PENDING",
+        "TO BOOK"
+      ],
+      "title": "BookingStatus",
+      "type": "string"
+    },
+    "Day": {
+      "additionalProperties": false,
+      "description": "One leg of the trip \u2014 a date and an ordered list of stops.",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "stats": {
+          "$ref": "#/$defs/DayStats"
+        },
+        "stops": {
+          "items": {
+            "$ref": "#/$defs/Stop"
+          },
+          "minItems": 1,
+          "title": "Stops",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title",
+        "date",
+        "stats",
+        "stops"
+      ],
+      "title": "Day",
+      "type": "object"
+    },
+    "DayStats": {
+      "additionalProperties": false,
+      "description": "Per-day totals shown in the day-head and the agenda summary.",
+      "properties": {
+        "miles": {
+          "minimum": 0,
+          "title": "Miles",
+          "type": "integer"
+        },
+        "drive": {
+          "title": "Drive",
+          "type": "string"
+        },
+        "charges": {
+          "minimum": 0,
+          "title": "Charges",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "miles",
+        "drive",
+        "charges"
+      ],
+      "title": "DayStats",
+      "type": "object"
+    },
+    "Meta": {
+      "additionalProperties": false,
+      "description": "Top-of-page presentation metadata.",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "version_label": {
+          "title": "Version Label",
+          "type": "string"
+        },
+        "agenda_label": {
+          "title": "Agenda Label",
+          "type": "string"
+        },
+        "default_plan": {
+          "title": "Default Plan",
+          "type": "string"
+        },
+        "storage_prefix": {
+          "pattern": "^[a-z][a-z0-9-]{0,31}$",
+          "title": "Storage Prefix",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "version_label",
+        "agenda_label",
+        "default_plan",
+        "storage_prefix"
+      ],
+      "title": "Meta",
+      "type": "object"
+    },
+    "Plan": {
+      "additionalProperties": false,
+      "description": "A plan variant. Each plan is a tab in the plan toggle.",
+      "properties": {
+        "key": {
+          "pattern": "^[A-Za-z0-9_-]{1,16}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "tagline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tagline"
+        },
+        "days": {
+          "items": {
+            "$ref": "#/$defs/Day"
+          },
+          "minItems": 1,
+          "title": "Days",
+          "type": "array"
+        },
+        "verification": {
+          "$ref": "#/$defs/Verification"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "summary",
+        "days"
+      ],
+      "title": "Plan",
+      "type": "object"
+    },
+    "Rating": {
+      "additionalProperties": false,
+      "description": "A simple star + user-rating pair for a hotel.",
+      "properties": {
+        "stars": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Stars",
+          "type": "integer"
+        },
+        "user": {
+          "maximum": 5.0,
+          "minimum": 0.0,
+          "title": "User",
+          "type": "number"
+        }
+      },
+      "required": [
+        "stars",
+        "user"
+      ],
+      "title": "Rating",
+      "type": "object"
+    },
+    "Restaurant": {
+      "additionalProperties": false,
+      "description": "A recommended restaurant near a charge stop.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "cuisine": {
+          "title": "Cuisine",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "cuisine"
+      ],
+      "title": "Restaurant",
+      "type": "object"
+    },
+    "Stop": {
+      "additionalProperties": false,
+      "description": "A single point in the day.\n\nMost fields are optional because their applicability depends on `type`.\nThe model-level validator below enforces type-specific requirements so\nbad input fails loudly at load time rather than producing a half-broken\nrender.",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/StopType"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "address": {
+          "title": "Address",
+          "type": "string"
+        },
+        "city_hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City Hint"
+        },
+        "place_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Place Id"
+        },
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lng": {
+          "title": "Lng",
+          "type": "number"
+        },
+        "elevation_ft": {
+          "anyOf": [
+            {
+              "maximum": 15000,
+              "minimum": -1000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Elevation Ft"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "leg_miles": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Leg Miles"
+        },
+        "leg_drive": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Leg Drive"
+        },
+        "arrive": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arrive"
+        },
+        "depart": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Depart"
+        },
+        "soc_in": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Soc In"
+        },
+        "soc_out": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Soc Out"
+        },
+        "charger_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Charger Type"
+        },
+        "meal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Meal"
+        },
+        "restaurants": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Restaurant"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Restaurants"
+        },
+        "rating": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rating"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rate"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        },
+        "booking_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BookingStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "conf_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conf Number"
+        },
+        "plan_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plan Label"
+        },
+        "check_in": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Check In"
+        },
+        "check_out": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Check Out"
+        },
+        "cancel_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cancel By"
+        },
+        "pet_policy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pet Policy"
+        },
+        "charger_prox": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Charger Prox"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "address",
+        "lat",
+        "lng"
+      ],
+      "title": "Stop",
+      "type": "object"
+    },
+    "StopType": {
+      "description": "The shape-of-a-stop discriminator.\n\nHotels and charge stops both render extended detail blocks; meal stops are\ntreated like business stops for Open-in-Maps purposes but render a lighter\ncard. Origin and destination are the trip endpoints \u2014 they get an address\nquery rather than a name query in the URL builders.",
+      "enum": [
+        "origin",
+        "charge",
+        "meal",
+        "hotel",
+        "dest"
+      ],
+      "title": "StopType",
+      "type": "string"
+    },
+    "Vehicle": {
+      "additionalProperties": false,
+      "description": "EV vehicle profile + consumption envelope.\n\nAll consumption parameters are explicit so the engine works for any EV,\nnot just the Tesla Model Y Performance used in the bundled sample. To\nuse a different vehicle, swap this block in the YAML \u2014 the runtime\npulls every constant from here.\n\nThe \u00a73.4 AC conservation indicator (runtime) reads `baseline_wh_per_mi`,\n`ac_penalty_wh_per_mi`, `ac_window_start/end`, `climb_kwh_per_1000ft`,\n`usable_pack_kwh`, `ac_indicator_arrival_threshold_pct`, and\n`ac_indicator_min_improvement_pp` directly. Removing any of these\nfields means refactoring the runtime in lockstep.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "make": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Make"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 1990,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year"
+        },
+        "wheels": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wheels"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "usable_pack_kwh": {
+          "exclusiveMinimum": 0,
+          "maximum": 300,
+          "title": "Usable Pack Kwh",
+          "type": "number"
+        },
+        "reserve_soc_pct": {
+          "default": 20.0,
+          "maximum": 80,
+          "minimum": 0,
+          "title": "Reserve Soc Pct",
+          "type": "number"
+        },
+        "baseline_wh_per_mi": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "title": "Baseline Wh Per Mi",
+          "type": "number"
+        },
+        "ac_penalty_wh_per_mi": {
+          "maximum": 200,
+          "minimum": 0,
+          "title": "Ac Penalty Wh Per Mi",
+          "type": "number"
+        },
+        "ac_window_start": {
+          "default": "10:00",
+          "pattern": "^\\d{2}:\\d{2}$",
+          "title": "Ac Window Start",
+          "type": "string"
+        },
+        "ac_window_end": {
+          "default": "18:00",
+          "pattern": "^\\d{2}:\\d{2}$",
+          "title": "Ac Window End",
+          "type": "string"
+        },
+        "climb_kwh_per_1000ft": {
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "title": "Climb Kwh Per 1000Ft",
+          "type": "number"
+        },
+        "regen_recovery": {
+          "default": 0.65,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Regen Recovery",
+          "type": "number"
+        },
+        "ac_indicator_arrival_threshold_pct": {
+          "default": 25.0,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Ac Indicator Arrival Threshold Pct",
+          "type": "number"
+        },
+        "ac_indicator_min_improvement_pp": {
+          "default": 3.0,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Ac Indicator Min Improvement Pp",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "usable_pack_kwh",
+        "baseline_wh_per_mi",
+        "ac_penalty_wh_per_mi",
+        "climb_kwh_per_1000ft"
+      ],
+      "title": "Vehicle",
+      "type": "object"
+    },
+    "Verification": {
+      "additionalProperties": false,
+      "description": "The three editorial verification groups rendered at the bottom of each day view.\n\nThe fourth group (Open in Maps Quality Audit) is computed at runtime\nfrom each stop's `place_id`; it is not declared in YAML.",
+      "properties": {
+        "confirmed": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Confirmed",
+          "type": "array"
+        },
+        "estimates": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Estimates",
+          "type": "array"
+        },
+        "tradeoffs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tradeoffs",
+          "type": "array"
+        }
+      },
+      "title": "Verification",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A full trip spec. The root model of the YAML schema.",
+  "properties": {
+    "meta": {
+      "$ref": "#/$defs/Meta"
+    },
+    "vehicle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Vehicle"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "plans": {
+      "items": {
+        "$ref": "#/$defs/Plan"
+      },
+      "minItems": 1,
+      "title": "Plans",
+      "type": "array"
+    }
+  },
+  "required": [
+    "meta",
+    "plans"
+  ],
+  "title": "Trip",
+  "type": "object"
+}

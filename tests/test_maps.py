@@ -172,55 +172,59 @@ def test_commas_preserved_in_encoded_segments() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_sample_full_trip_url_waypoint_count(sample_trip: Trip) -> None:
-    """Baseline plan: 20 raw stops, 3 dedup collapses → 17 waypoints."""
-    baseline = next(p for p in sample_trip.plans if p.key == "Baseline")
-    url = full_trip_url(baseline)
+def test_sample_plan_a_full_trip_url_waypoint_count(sample_trip: Trip) -> None:
+    """Plan A: 20 raw stops, 3 dedup collapses → 17 waypoints."""
+    plan_a = next(p for p in sample_trip.plans if p.key == "A")
+    url = full_trip_url(plan_a)
     parts = url.replace("https://www.google.com/maps/dir/", "").split("/")
     assert len(parts) == 17
 
 
-def test_sample_plan_a_full_trip_url_waypoint_count(sample_trip: Trip) -> None:
-    """Plan A: 21 raw stops, 3 dedup collapses → 18 waypoints."""
-    plan_a = next(p for p in sample_trip.plans if p.key == "A")
-    url = full_trip_url(plan_a)
-    parts = url.replace("https://www.google.com/maps/dir/", "").split("/")
-    assert len(parts) == 18
-
-
 def test_sample_plan_b_full_trip_url_waypoint_count(sample_trip: Trip) -> None:
-    """Plan B: 20 raw stops, 2 dedup collapses → 18 waypoints."""
+    """Plan B: 21 raw stops, 3 dedup collapses → 18 waypoints."""
     plan_b = next(p for p in sample_trip.plans if p.key == "B")
     url = full_trip_url(plan_b)
     parts = url.replace("https://www.google.com/maps/dir/", "").split("/")
     assert len(parts) == 18
 
 
-def test_sample_baseline_day1_url_collapses_tucson_pair(sample_trip: Trip) -> None:
-    """Tucson Tech Park SC + Hampton Inn share 9095 S Rita Rd."""
-    baseline = next(p for p in sample_trip.plans if p.key == "Baseline")
-    day1 = baseline.days[0]
+def test_sample_plan_c_full_trip_url_waypoint_count(sample_trip: Trip) -> None:
+    """Plan C: 20 raw stops, 2 dedup collapses → 18 waypoints."""
+    plan_c = next(p for p in sample_trip.plans if p.key == "C")
+    url = full_trip_url(plan_c)
+    parts = url.replace("https://www.google.com/maps/dir/", "").split("/")
+    assert len(parts) == 18
+
+
+def test_sample_plan_a_day1_url_collapses_tucson_pair(sample_trip: Trip) -> None:
+    """Tucson Tech Park SC + Hampton Inn share 9095 S Rita Rd (Plan A Day 1)."""
+    plan_a = next(p for p in sample_trip.plans if p.key == "A")
+    day1 = plan_a.days[0]
     raw = len(day1.stops)
     parts = day_url(day1).replace("https://www.google.com/maps/dir/", "").split("/")
     assert len(parts) == raw - 1  # one collapse
 
 
 def test_sample_place_quality_audit(sample_trip: Trip) -> None:
-    """The audit numbers and fallback lists must match the spec's §18.5 table."""
+    """The audit numbers and fallback lists must match the spec's §18.5 table.
+
+    Plan keys renamed in v15: Baseline→A, A→B, B→C. The set of fallback
+    business stops is unchanged (still the same hotels lacking Place IDs).
+    """
     by_key = {p.key: p for p in sample_trip.plans}
 
-    audit = audit_plan_place_quality(by_key["Baseline"])
+    audit = audit_plan_place_quality(by_key["A"])
     assert audit["fallback"] == []
     assert len(audit["verified"]) == 16
 
-    audit = audit_plan_place_quality(by_key["A"])
+    audit = audit_plan_place_quality(by_key["B"])
     assert sorted(audit["fallback"]) == sorted([
         "Hampton Inn El Centro",
         "TownePlace Suites by Marriott Las Cruces",
         "Best Western Plus Fort Stockton Hotel",
     ])
 
-    audit = audit_plan_place_quality(by_key["B"])
+    audit = audit_plan_place_quality(by_key["C"])
     assert sorted(audit["fallback"]) == sorted([
         "Hampton Inn & Suites Yuma",
         "Hampton Inn & Suites El Paso-Airport",

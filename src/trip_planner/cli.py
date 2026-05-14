@@ -13,6 +13,7 @@ Every command:
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from pathlib import Path
@@ -25,6 +26,7 @@ from trip_planner.errors import TripPlannerError
 from trip_planner.loader import load_trip
 from trip_planner.logging_config import configure as configure_logging
 from trip_planner.maps import full_trip_url
+from trip_planner.models import Trip
 from trip_planner.renderer import Renderer
 
 log = logging.getLogger("TripPlanner.cli")
@@ -73,7 +75,7 @@ def main(ctx: click.Context, verbose: bool) -> None:
 @click.option(
     "--output", "-o",
     type=click.Path(dir_okay=False, path_type=Path),
-    default=Path("build") / "trip.html",
+    default=Path("renders") / "trip.html",
     show_default=True,
     help="Where to write the rendered HTML.",
 )
@@ -133,6 +135,59 @@ def full_trip_url_cmd(ctx: click.Context, spec: Path, plan_key: str) -> None:
             keys = ", ".join(p.key for p in trip.plans)
             _die(f"plan {plan_key!r} not found in spec (have: {keys})")
         click.echo(full_trip_url(match))
+
+    _wrap(_do, verbose=ctx.obj["verbose"])
+
+
+@main.command("schema")
+@click.option(
+    "--output", "-o",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write the schema to this file. Default: stdout.",
+)
+@click.option(
+    "--check",
+    is_flag=True,
+    help="Compare against an existing schema file (use with --output). "
+    "Exit 3 if the file is missing or stale.",
+)
+@click.pass_context
+def schema_cmd(ctx: click.Context, output: Path, check: bool) -> None:
+    """Print or write the JSON Schema for the trip spec (derived from Pydantic).
+
+    The schema describes the YAML input shape (snake_case field names), and
+    is suitable for IDE validation (yaml-language-server) and as a reference
+    for LLM-assisted YAML generation. Regenerate after any model change.
+    """
+
+    def _do() -> None:
+        # by_alias=False keeps YAML field names (snake_case). The camelCase
+        # aliases are an HTML-runtime detail and irrelevant to authors.
+        schema = Trip.model_json_schema(by_alias=False)
+        encoded = json.dumps(schema, indent=2, sort_keys=False) + "\n"
+
+        if check:
+            if output is None:
+                _die("--check requires --output to know which file to compare", code=2)
+            if not output.exists():
+                _die(f"schema file does not exist: {output} (run without --check to create it)", code=3)
+            on_disk = output.read_text(encoding="utf-8")
+            if on_disk != encoded:
+                _die(
+                    f"schema drift detected — {output} is out of date.\n"
+                    f"regenerate with: trip-planner schema -o {output}",
+                    code=3,
+                )
+            click.echo(f"ok: {output} matches the generated schema")
+            return
+
+        if output is None:
+            click.echo(encoded, nl=False)
+        else:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(encoded, encoding="utf-8")
+            click.echo(f"wrote {output}")
 
     _wrap(_do, verbose=ctx.obj["verbose"])
 

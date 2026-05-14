@@ -2,7 +2,7 @@
 # San Diego → Austin · EV Road Trip
 #
 # Sample trip for the trip-planner engine. Captures the v14 spec as a
-# YAML document. Three plan variants ("Baseline", "A", "B") are maintained
+# YAML document. Three plan variants (A, B, C) are maintained
 # in parallel for in-trip plan switching.
 #
 # Reusable place definitions live under `_aliases` at the top — the loader
@@ -15,16 +15,20 @@ _aliases:
   # Endpoints are public landmarks (City Hall to City Hall) so the sample
   # routes to real, real-world locations without exposing anyone's home
   # address. Swap these anchors in your own local copy for a private trip.
+  # elevation_ft per stop powers the §3.4 AC conservation indicator
+  # (climbing legs raise consumption Wh/mi).
   - &place_origin
     name: "San Diego City Hall"
     address: "202 C St, San Diego CA 92101"
     lat: 32.7174
     lng: -117.1628
+    elevation_ft: 50
   - &place_dest
     name: "Austin City Hall"
     address: "301 W 2nd St, Austin TX 78701"
     lat: 30.2655
     lng: -97.7470
+    elevation_ft: 470
 
   # ---------------- Superchargers ----------------
   - &sc_elcentro
@@ -34,6 +38,7 @@ _aliases:
     place_id: "ChIJ7e8kLs1n14ARXaJ4irX08UY"
     lat: 32.7608
     lng: -115.5325
+    elevation_ft: 50
   - &sc_yuma
     name: "Yuma Supercharger"
     address: "310 N Madison Ave, Yuma AZ 85364"
@@ -41,6 +46,7 @@ _aliases:
     place_id: "ChIJx6rVfNX11oARPiNURuLL4Fw"
     lat: 32.7277
     lng: -114.6204
+    elevation_ft: 140
   - &sc_gila
     name: "Gila Bend Supercharger"
     address: "826 W Pima St, Gila Bend AZ 85337"
@@ -48,6 +54,7 @@ _aliases:
     place_id: "ChIJHV_CpRUv1YARf8vuV6kJE1Q"
     lat: 32.9477
     lng: -112.7204
+    elevation_ft: 750
   - &sc_casa
     name: "Casa Grande Supercharger"
     address: "2453 E Florence Blvd, Casa Grande AZ 85194"
@@ -55,6 +62,7 @@ _aliases:
     place_id: "ChIJj-fFhxxnKocRokDrVERzQJA"
     lat: 32.8929
     lng: -111.7176
+    elevation_ft: 1400
   - &sc_tech
     name: "Tucson Tech Park Supercharger"
     address: "9095 S Rita Rd, Tucson AZ 85747"
@@ -62,6 +70,7 @@ _aliases:
     place_id: "ChIJt_eHI4th1oYRX4UjVvVvrY4"
     lat: 32.1037
     lng: -110.7984
+    elevation_ft: 2500
   - &sc_willcox
     name: "Willcox Supercharger"
     address: "1251 Virginia Ave, Willcox AZ 85643"
@@ -69,6 +78,7 @@ _aliases:
     place_id: "ChIJq5LXJhuc14YRIQNFYaMbMls"
     lat: 32.2587
     lng: -109.8407
+    elevation_ft: 4170
   - &sc_lordsburg
     name: "Lordsburg Supercharger"
     address: "Main St #1316, Lordsburg NM 88045"
@@ -76,6 +86,7 @@ _aliases:
     place_id: "ChIJm-VA--EB2YYR5MNXHGRkLo8"
     lat: 32.3469
     lng: -108.7081
+    elevation_ft: 4250
   - &sc_lascruces
     name: "Las Cruces Supercharger"
     address: "W Amador Ave #2702, Las Cruces NM 88005"
@@ -83,6 +94,7 @@ _aliases:
     place_id: "ChIJX_hZ8AEW3oYRDx1raMAn90Y"
     lat: 32.3098
     lng: -106.7836
+    elevation_ft: 3900
   - &sc_elpaso
     name: "El Paso Gateway Supercharger"
     address: "7970 Gateway Blvd E, El Paso TX 79907"
@@ -90,6 +102,7 @@ _aliases:
     place_id: "ChIJ8Sroa61E54YROTnPjiFNqI8"
     lat: 31.7423
     lng: -106.3014
+    elevation_ft: 3700
   - &sc_vanhorn
     name: "Van Horn Supercharger"
     address: "W Broadway St #1807, Van Horn TX 79855"
@@ -97,6 +110,7 @@ _aliases:
     place_id: "ChIJJWimrQfm5YYRvNznGs1gEPw"
     lat: 31.0436
     lng: -104.8341
+    elevation_ft: 4000
   - &sc_fortstockton
     name: "Fort Stockton Supercharger"
     address: "2571 N Front St, Fort Stockton TX 79735"
@@ -104,6 +118,7 @@ _aliases:
     place_id: "ChIJ35VV-dV_8IYRu8r0d7ctbwc"
     lat: 30.8932
     lng: -102.8762
+    elevation_ft: 3000
   - &sc_ozona
     name: "Ozona Supercharger"
     address: "1307 Ave A Bldg B, Ozona TX 76943"
@@ -111,6 +126,7 @@ _aliases:
     place_id: "ChIJd1k-mXKj94YRQOovphrMk0I"
     lat: 30.7102
     lng: -101.2014
+    elevation_ft: 2300
   - &sc_junction
     name: "Junction Supercharger"
     address: "2415 N Main St, Junction TX 76849"
@@ -118,6 +134,7 @@ _aliases:
     place_id: "ChIJIaTxlHMHWYYRx4J4NtI-7Ds"
     lat: 30.4934
     lng: -99.7728
+    elevation_ft: 1750
   - &sc_fredericksburg
     name: "Fredericksburg Supercharger"
     address: "108 S Elk St, Fredericksburg TX 78624"
@@ -125,6 +142,7 @@ _aliases:
     place_id: "ChIJwT7nBlnAW4YRDZ6_kQn22R4"
     lat: 30.2741
     lng: -98.8716
+    elevation_ft: 1700
 
   # ---------------- Hotels ----------------
   - &hotel_tucson
@@ -134,6 +152,7 @@ _aliases:
     place_id: "ChIJt_eHI4th1oYRX4UjVvVvrY4"
     lat: 32.1031
     lng: -110.7980
+    elevation_ft: 2500
     phone: "+1-520-989-7200"
   - &hotel_vanhorn
     name: "Holiday Inn Express & Suites Van Horn"
@@ -142,6 +161,7 @@ _aliases:
     place_id: "ChIJ68Y4WU3v5YYRIRXK2BgYr-U"
     lat: 31.0398
     lng: -104.8395
+    elevation_ft: 4000
     phone: "+1-432-283-0009"
   - &hotel_elcentro
     name: "Hampton Inn El Centro"
@@ -149,6 +169,7 @@ _aliases:
     city_hint: "El Centro CA"
     lat: 32.7861
     lng: -115.5520
+    elevation_ft: 50
     phone: "+1-760-352-6800"
   - &hotel_lascruces
     name: "TownePlace Suites by Marriott Las Cruces"
@@ -156,6 +177,7 @@ _aliases:
     city_hint: "Las Cruces NM"
     lat: 32.3243
     lng: -106.7402
+    elevation_ft: 3900
     phone: "+1-575-532-6500"
   - &hotel_fortstockton
     name: "Best Western Plus Fort Stockton Hotel"
@@ -163,6 +185,7 @@ _aliases:
     city_hint: "Fort Stockton TX"
     lat: 30.8916
     lng: -102.9237
+    elevation_ft: 3000
     phone: "+1-432-336-7000"
   - &hotel_yuma
     name: "Hampton Inn & Suites Yuma"
@@ -170,6 +193,7 @@ _aliases:
     city_hint: "Yuma AZ"
     lat: 32.7108
     lng: -114.6079
+    elevation_ft: 140
     phone: "+1-928-329-5600"
   - &hotel_elpaso
     name: "Hampton Inn & Suites El Paso-Airport"
@@ -177,6 +201,7 @@ _aliases:
     city_hint: "El Paso TX"
     lat: 31.7843
     lng: -106.3417
+    elevation_ft: 3700
     phone: "+1-915-771-6644"
 
 # =============================================================================
@@ -185,14 +210,40 @@ _aliases:
 
 meta:
   title: "San Diego → Austin"
-  version_label: "v14 · Tesla MYP · 69 mph"
-  agenda_label: "Full Trip Agenda · v14"
-  default_plan: "Baseline"
+  version_label: "v15 · Tesla MYP · 69 mph"
+  agenda_label: "Full Trip Agenda · v15"
+  default_plan: "A"
   storage_prefix: "sd-austin"
 
+# §3 consumption envelope per spec §3.1–§3.3. Constants here drive the
+# runtime §3.4 AC conservation indicator. To use a different EV, change
+# every value in this block (and the per-stop elevation_ft) — no other
+# code changes needed.
 vehicle:
   name: "Tesla Model Y Performance"
-  notes: "Stock aero (no roof box). 69 mph cruise + 5% drive-time allowance. ~605 lb payload."
+  make: "Tesla"
+  model: "Model Y Performance"
+  year: 2024
+  wheels: '21" Überturbine'
+  notes: >-
+    Stock aero (no roof box). ~605 lb payload (2 adults + 2 ~60 lb dogs +
+    ~200 lb gear). Cruise 69 mph + 5% drive-time allowance.
+
+  # Pack + budget
+  usable_pack_kwh: 75
+  reserve_soc_pct: 20
+
+  # Consumption (per §3.3)
+  baseline_wh_per_mi: 330
+  ac_penalty_wh_per_mi: 30
+  ac_window_start: "10:00"
+  ac_window_end: "18:00"
+  climb_kwh_per_1000ft: 2.35
+  regen_recovery: 0.65
+
+  # §3.4 AC indicator thresholds
+  ac_indicator_arrival_threshold_pct: 25
+  ac_indicator_min_improvement_pp: 3
 
 # =============================================================================
 # Plans
@@ -201,10 +252,11 @@ vehicle:
 plans:
 
   # ---------------------------------------------------------------------------
-  # Baseline · 3D · 2N
+  # Plan A · 3D · 2N · Sat 5/23 AM departure (primary, BOOKED)
   # ---------------------------------------------------------------------------
-  - key: "Baseline"
-    label: "Baseline · 3D · 2N"
+  - key: "A"
+    label: "Plan A · 3D · 2N"
+    tagline: "Sat 5/23 AM departure"
     summary: "Sat 5/23 – Mon 5/25 · ~1,340 mi · 14 charges"
     days:
 
@@ -282,7 +334,7 @@ plans:
             rate: "~$169"
             booking_status: "BOOKED"
             conf_number: "EXAMPLE-1001"
-            plan_label: "Baseline"
+            plan_label: "Plan A"
             check_in: "May 23 (Sat) 4:00 PM"
             check_out: "May 24 (Sun) 11:00 AM"
             cancel_by: "Free cancel through 22 May 2026 11:59 PM local"
@@ -362,7 +414,7 @@ plans:
             rate: "~$135"
             booking_status: "BOOKED"
             conf_number: "EXAMPLE-1002"
-            plan_label: "Baseline"
+            plan_label: "Plan A"
             check_in: "May 24 (Sun) 3:00 PM"
             check_out: "May 25 (Mon) 12:00 PM"
             cancel_by: "Verify cancel deadline in confirmation email"
@@ -449,10 +501,11 @@ plans:
         - "Van Horn pet weight cap: Holiday Inn Express specific limit not publicly documented — verify with property at check-in."
 
   # ---------------------------------------------------------------------------
-  # Plan A · 4D · 3N
+  # Plan B · 4D · 3N · Fri 5/22 5:00 PM departure (BOOKED alternative)
   # ---------------------------------------------------------------------------
-  - key: "A"
-    label: "Plan A · 4D · 3N"
+  - key: "B"
+    label: "Plan B · 4D · 3N"
+    tagline: "Fri 5/22 5:00 PM departure"
     summary: "Fri 5/22 – Mon 5/25 · ~1,274 mi · 13 charges"
     days:
 
@@ -483,7 +536,7 @@ plans:
             rate: "~$149"
             booking_status: "BOOKED"
             conf_number: "EXAMPLE-1003"
-            plan_label: "Plan A"
+            plan_label: "Plan B"
             check_in: "May 22 (Fri)"
             check_out: "May 23 (Sat)"
             cancel_by: "Verify cancel deadline in confirmation email"
@@ -576,7 +629,7 @@ plans:
             rate: "~$155"
             booking_status: "BOOKED"
             conf_number: "EXAMPLE-1004"
-            plan_label: "Plan A"
+            plan_label: "Plan B"
             check_in: "May 23 (Sat)"
             check_out: "May 24 (Sun)"
             cancel_by: "Verify cancel deadline in confirmation email"
@@ -635,7 +688,7 @@ plans:
             rate: "~$129"
             booking_status: "BOOKED"
             conf_number: "EXAMPLE-1005"
-            plan_label: "Plan A"
+            plan_label: "Plan B"
             check_in: "May 24 (Sun) 3:00 PM"
             check_out: "May 25 (Mon) 11:00 AM"
             cancel_by: "Verify cancel deadline in confirmation email"
@@ -697,13 +750,13 @@ plans:
         - "Hampton Inn El Centro BOOKED — Conf #EXAMPLE-1003 (Fri 5/22 → Sat 5/23)"
         - "TownePlace Suites by Marriott Las Cruces BOOKED — Conf #EXAMPLE-1004 (Sat 5/23 → Sun 5/24)"
         - "Best Western Plus Fort Stockton Hotel BOOKED — Conf #EXAMPLE-1005 (Sun 5/24 → Mon 5/25)"
-        - "All three Plan A hotel bookings retain canonical addresses, phone numbers, and verified pet policies"
+        - "All three Plan B hotel bookings retain canonical addresses, phone numbers, and verified pet policies"
       estimates:
         - "Drive times computed at 69 mph + 5% allowance"
         - "All inbound and outbound SoC values"
         - "Charging session durations"
         - "Restaurant times and illustrative nightly rates"
-        - "Plan A Sat departure SoC assumes overnight charge at El Centro hotel"
+        - "Plan B Sat departure SoC assumes overnight charge at El Centro hotel"
       tradeoffs:
         - "Sat is heaviest day (~12 hr elapsed including pre-hotel charge stop) — Sun acts as recovery."
         - "Casa Grande → Willcox leg ~130 mi — at upper edge of 125 mi cap; mitigated by 90% charge at Casa Grande."
@@ -711,10 +764,11 @@ plans:
         - "Fort Stockton Sun arrival ~12:48 — well before 3 PM check-in; plan long lunch or call hotel for early check-in."
 
   # ---------------------------------------------------------------------------
-  # Plan B · 3D · 2N (contingency — TO BOOK)
+  # Plan C · 3D · 2N · Fri 5/22 3:30 PM departure (unbooked contingency)
   # ---------------------------------------------------------------------------
-  - key: "B"
-    label: "Plan B · 3D · 2N"
+  - key: "C"
+    label: "Plan C · 3D · 2N"
+    tagline: "Fri 5/22 3:30 PM departure"
     summary: "Fri 5/22 – Sun 5/24 · ~1,362 mi · 14 charges"
     days:
 
@@ -756,7 +810,7 @@ plans:
             rating: { stars: 3, user: 4.6 }
             rate: "~$139"
             booking_status: "TO BOOK"
-            plan_label: "Plan B"
+            plan_label: "Plan C"
             cancel_by: "Call +1-928-329-5600 to verify pet weight cap before booking"
             pet_policy: "Hilton default 75 lb/pet; one third-party source lists 50 lb cap — call to confirm"
             charger_prox: "~4 min (1.8 mi)"
@@ -853,8 +907,8 @@ plans:
             rating: { stars: 3, user: 4.5 }
             rate: "~$165"
             booking_status: "TO BOOK"
-            plan_label: "Plan B"
-            cancel_by: "Book on the road if Plan B activated"
+            plan_label: "Plan C"
+            cancel_by: "Book on the road if Plan C activated"
             pet_policy: "Hilton: 2 dogs any size, $75/stay (1–2 nights) — best in-class pet policy"
             charger_prox: "~6 min (3.0 mi)"
 
