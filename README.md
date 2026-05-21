@@ -47,7 +47,7 @@ The bundled sample (`trips/sd_austin.yaml`) is a real San Diego → Austin EV pl
 
 - **One file out.** A complete HTML document with CSS and JS inlined — no asset folder to ship alongside it.
 - **Plan variants.** Bundle multiple itineraries (`Plan A`, `Plan B`, `Conservative`) into one render; the user toggles between them in the sticky header.
-- **Day-by-day or full-trip view.** Each plan has a per-day view and an agenda view; the runtime persists which view you last used.
+- **Day-by-day, full-trip, or cross-plan merged view.** Each plan has a per-day view and a full-trip agenda. A fourth `All Plans · Merged` toggle unions every supercharger and hotel across plans into one west-to-east sequence — dedup'd by `place_id` or address, ordered by projection onto the origin→destination vector — so a driver can see every possible stop in one continuous list.
 - **Deep-link state.** Plan / day / mode are mirrored into the URL fragment and `localStorage`. Send someone `#plan=A&day=2&mode=day` and they land exactly where you did.
 - **Google Maps integration.** One-tap **Directions** and **Open in Maps** buttons for every stop; one-tap full-trip and per-day multi-stop routes. URL builders dedupe consecutive same-location stops (hotel-end-of-day-N / hotel-origin-of-day-N+1) automatically.
 - **Place-quality audit.** Every business stop is classified `verified` (has a Google Place ID), `fallback` (name+city search), or `n/a` (personal endpoint). The day view surfaces counts and named fallbacks, and a `console.warn` fires per render so DevTools doubles as a progress bar while you capture missing Place IDs.
@@ -598,7 +598,7 @@ Open a render in a browser and here's what's wired up.
 - **Brand line** (`meta.title`) and **version chip** (`meta.version_label`).
 - **Plan toggle**: one button per plan. Each shows the plan's `label` plus a sub-label derived from `tagline` (or the segment after the first `·` in `label`).
 - **Day toggle**: one button per day, pre-labeled with `Day N` and the day's `date`.
-- **Mode toggle**: switch between **Day view** (cards for each stop in the active day) and **Agenda view** (the full plan as a printable-feeling agenda cover plus all days).
+- **Mode toggle**: three views — **Day view** (cards for each stop in the active day), **Full Trip Agenda** (the active plan as a printable-feeling agenda cover plus all days), and **All Plans · Merged** (every unique charger and hotel across all plans, ordered along the road). In merged mode the plan and day toggles deselect to signal that the view is cross-plan; selection restores on exit.
 
 ### State and deep links
 
@@ -608,7 +608,7 @@ The runtime keeps three pieces of state:
 | --- | --- | --- |
 | `state.plan` | a plan `key` | `localStorage[<prefix>-plan]`, URL fragment `plan=` |
 | `state.day` | 1-based day index | `localStorage[<prefix>-day]`, URL fragment `day=` |
-| `state.mode` | `day` or `agenda` | `localStorage[<prefix>-mode]`, URL fragment `mode=` |
+| `state.mode` | `day`, `agenda`, or `merged` | `localStorage[<prefix>-mode]`, URL fragment `mode=` |
 
 URL fragment example: `#plan=A&day=2&mode=day`. Fragment values **take precedence over `localStorage` on load**. Out-of-range values fall back to defaults silently — no broken bookmarks if you delete a plan or shorten a day list.
 
@@ -639,6 +639,16 @@ At the bottom of every day view, four groups:
 - **Estimates** — `verification.estimates[]`.
 - **Tradeoffs** — `verification.tradeoffs[]`.
 - **Open in Maps · Quality Audit** — computed at runtime; lists every business stop on name-query fallback. A `console.warn` also fires per render naming the affected plan and stops — open DevTools while you capture missing Place IDs and watch the warning shrink.
+
+### All Plans · Merged view
+
+A flat continuous list of every unique charger and hotel across every plan, ordered along the road from trip origin to destination. Useful for drivers who want to scan all options without first committing to a plan — skip any stop and keep driving.
+
+- **Deduplication.** Each stop's identity is `type + (placeId | address | coord)`. Two superchargers with the same `place_id` collapse to one entry. A Supercharger and a hotel at the same `place_id` (e.g. on-site charging at a hotel campus) stay distinct because `type` is part of the key.
+- **Ordering.** Each entry is projected onto the vector from the trip origin to the trip destination (`(stop − origin) · (dest − origin)`) and sorted by the scalar projection. Works for any trip direction. Ties (a charger and a hotel at the same coordinates) tie-break with `charge` before `hotel`.
+- **Plan chips.** Under each stop, a chip per plan that visits it (`A`, `B`, `C`). Hotel chips are color-coded by booking status — green when `BOOKED` somewhere, gray when `TO BOOK`.
+- **Inline reservation detail.** Under each hotel, one row per plan that holds a reservation: plan-key prefix + a green `BOOKED · Conf #<n>` pill + check-in → check-out times. The pill is the same `.booking-pill.booked` element used in the day and agenda views, so the green BOOKED treatment reads identically in all three.
+- **No day boundaries.** The view is a single sequence with no per-day grouping. Plan and day toggles deselect while you're in merged mode and restore when you leave.
 
 ---
 
