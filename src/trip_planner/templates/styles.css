@@ -561,6 +561,31 @@ main { padding: 0; }
 .plan-chip.booked  { background: rgba(21, 128, 61, 0.12);  color: var(--good); border-color: rgba(21, 128, 61, 0.35); }
 .plan-chip.tobook  { background: rgba(138, 132, 122, 0.18); color: var(--muted); }
 .plan-chip.pending { background: rgba(194, 65, 12, 0.12);  color: var(--meal); border-color: rgba(194, 65, 12, 0.30); }
+
+.merged-bookings {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.merged-bookings .row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  line-height: 1.4;
+}
+.merged-bookings .row .key {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 18px;
+  flex-shrink: 0;
+  font-weight: 600;
+  padding-top: 5px;
+}
+.merged-bookings .row .val { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.merged-bookings .booking-times { margin-top: 0; }
+
 .merged-floor { padding: 20px 16px 40px 16px; text-align: center; }
 
 /* Hidden helpers */

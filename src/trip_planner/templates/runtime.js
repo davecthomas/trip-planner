@@ -261,17 +261,23 @@
    * =================================================================== */
 
   function renderPlanToggle() {
+    // Merged view is cross-plan, so no plan is "selected" while in merged mode.
+    const inMerged = state.mode === "merged";
     document.querySelectorAll(".plan-toggle .toggle-btn").forEach((b) => {
-      b.setAttribute("aria-pressed", b.dataset.plan === state.plan ? "true" : "false");
+      const pressed = !inMerged && b.dataset.plan === state.plan;
+      b.setAttribute("aria-pressed", pressed ? "true" : "false");
     });
   }
   function renderDayToggle() {
+    // Merged view doesn't anchor on a specific day, so the day toggle shows no
+    // selection while in merged mode.
+    const inMerged = state.mode === "merged";
     const wrap = document.getElementById("day-toggle");
     const days = DAY_LABELS[state.plan] || [];
     wrap.style.setProperty("--day-cols", days.length || 1);
     wrap.innerHTML = days.map((d) =>
       '<button class="toggle-btn" data-day="' + d.n + '" aria-pressed="' +
-      (d.n === state.day ? "true" : "false") + '">' +
+      (!inMerged && d.n === state.day ? "true" : "false") + '">' +
       escapeHtml(d.label) + '<span class="sub">' + escapeHtml(d.sub) + "</span></button>"
     ).join("");
     wrap.querySelectorAll(".toggle-btn").forEach((b) => {
@@ -279,6 +285,7 @@
         state.day = parseInt(b.dataset.day, 10);
         if (state.mode !== "day") state.mode = "day";
         persist();
+        renderPlanToggle();
         renderDayToggle();
         renderAgendaToggle();
         renderMergedToggle();
@@ -604,19 +611,14 @@
                     (s.rate ? " · " + s.rate : "") +
                     (s.chargerProx ? " · " + s.chargerProx : "") + "</div>";
           }
-          if (s.bookingStatus === "BOOKED") {
-            html += '<div class="stop-detail">BOOKED for ' + escapeHtml(s.planLabel || "") +
-                    " · Conf #" + escapeHtml(s.confNumber || "") + "</div>";
-          } else if (s.bookingStatus === "TO BOOK") {
-            html += '<div class="stop-detail">TO BOOK for ' + escapeHtml(s.planLabel || "") + "</div>";
+          // Booking pill + check-in/out + cancel-by — matches the day-view
+          // booking block so the green BOOKED pill reads the same in both
+          // views.
+          if (s.bookingStatus) {
+            html += renderBookingBlock(s);
           }
-          if (s.checkIn && s.checkOut) {
-            html += '<div class="stop-detail">Check-in ' + escapeHtml(s.checkIn) +
-                    " → " + escapeHtml(s.checkOut) + "</div>";
-          }
-          if (s.cancelBy)   html += '<div class="stop-detail">' + escapeHtml(s.cancelBy) + "</div>";
           if (s.phone)      html += '<div class="stop-detail">' + escapeHtml(s.phone) + "</div>";
-          if (s.petPolicy)  html += '<div class="stop-detail">' + escapeHtml(s.petPolicy) + "</div>";
+          if (s.petPolicy)  html += '<div class="pet-policy">' + escapeHtml(s.petPolicy) + "</div>";
         }
         html += "</div></div>";
       });
@@ -755,6 +757,8 @@
       state.mode = "day";
       persist();
       renderMergedToggle();
+      renderPlanToggle();
+      renderDayToggle();
       renderMode();
     });
   }
@@ -803,6 +807,40 @@
       html += '<span class="plan-chip' + cls + '">' + escapeHtml(pk) + "</span>";
     });
     html += "</div>";
+
+    // Inline booking detail for each plan that has a reservation here. Uses
+    // the same .booking-pill/.booking-times styling as the day view so the
+    // BOOKED/TO BOOK status reads consistently across all three views. The
+    // plan-key prefix replaces the day view's "for Plan X" wording since the
+    // key is already visible.
+    if (s.type === "hotel" && entry.bookings.length) {
+      const rows = entry.bookings.filter(
+        (b) => b.bookingStatus === "BOOKED" || b.bookingStatus === "TO BOOK"
+      );
+      if (rows.length) {
+        html += '<div class="merged-bookings">';
+        rows.forEach((b) => {
+          const statusClass = b.bookingStatus === "BOOKED" ? "booked"
+                            : (b.bookingStatus === "TO BOOK" ? "tobook" : "pending");
+          let pill = b.bookingStatus;
+          if (b.bookingStatus === "BOOKED" && b.confNumber) {
+            pill += " · Conf #" + b.confNumber;
+          }
+          let html_ =
+            '<div class="row">' +
+            '<span class="key">' + escapeHtml(b.planKey) + "</span>" +
+            '<span class="val">' +
+              '<span class="booking-pill ' + statusClass + '">' + escapeHtml(pill) + "</span>";
+          if (b.checkIn && b.checkOut) {
+            html_ += '<div class="booking-times">' + escapeHtml(b.checkIn) +
+                     " → " + escapeHtml(b.checkOut) + "</div>";
+          }
+          html_ += "</span></div>";
+          html += html_;
+        });
+        html += "</div>";
+      }
+    }
 
     const placeHref = placeUrl(s);
     const dirHref = dirUrl(s);
@@ -858,9 +896,15 @@
       state.plan = b.dataset.plan;
       const maxDay = TRIPS[state.plan].days.length;
       if (state.day > maxDay) state.day = 1;
+      // Picking a plan means the user wants to look at that plan's day view —
+      // drop out of agenda / merged modes so the click actually lands somewhere
+      // the plan selection matters.
+      if (state.mode !== "day") state.mode = "day";
       persist();
       renderPlanToggle();
       renderDayToggle();
+      renderAgendaToggle();
+      renderMergedToggle();
       renderMode();
     });
   });
@@ -870,6 +914,8 @@
     persist();
     renderAgendaToggle();
     renderMergedToggle();
+    renderPlanToggle();
+    renderDayToggle();
     renderMode();
   });
 
@@ -878,6 +924,8 @@
     persist();
     renderAgendaToggle();
     renderMergedToggle();
+    renderPlanToggle();
+    renderDayToggle();
     renderMode();
   });
 
