@@ -33,8 +33,15 @@
     --ink: #f3ede0;
     --ink-soft: #c8c1b1;
     --muted: #7a7468;
-    --divider: #2e2a23;
-    --hairline: #25221c;
+    /* Border tokens calibrated for visibility on dark surfaces.
+       --divider previously sat at #2e2a23 (~1.2:1 vs --surface), making
+       button outlines and section boundaries effectively invisible.
+       New value yields ~3:1 — WCAG non-text-UI minimum — while staying
+       darker than --muted text so borders read as structure, not labels.
+       --hairline follows at ~1.6:1 for the more subordinate per-card
+       separators. */
+    --divider: #6a6253;
+    --hairline: #3e382d;
     --accent: #f97316;
     --charge: #60a5fa;
     --hotel: #4ade80;
