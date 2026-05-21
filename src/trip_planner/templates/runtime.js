@@ -253,7 +253,7 @@
 
     // Legacy migration: any persisted 'map' value silently maps to 'day'.
     const modeRaw = frag.mode || lsMode || "day";
-    state.mode = (modeRaw === "agenda") ? "agenda" : "day";
+    state.mode = (modeRaw === "agenda" || modeRaw === "merged") ? modeRaw : "day";
   }
 
   /* ===================================================================
@@ -277,9 +277,11 @@
     wrap.querySelectorAll(".toggle-btn").forEach((b) => {
       b.addEventListener("click", () => {
         state.day = parseInt(b.dataset.day, 10);
-        if (state.mode === "agenda") state.mode = "day";
+        if (state.mode !== "day") state.mode = "day";
         persist();
         renderDayToggle();
+        renderAgendaToggle();
+        renderMergedToggle();
         renderMode();
       });
     });
@@ -291,6 +293,16 @@
       btn.classList.add("active");
     } else {
       btn.innerHTML = '<span class="icon">☰</span><span class="label">Full Trip Agenda</span>';
+      btn.classList.remove("active");
+    }
+  }
+  function renderMergedToggle() {
+    const btn = document.getElementById("merged-toggle");
+    if (state.mode === "merged") {
+      btn.innerHTML = '<span class="icon">←</span><span class="label">Back to Day View</span>';
+      btn.classList.add("active");
+    } else {
+      btn.innerHTML = '<span class="icon">⛁</span><span class="label">All Plans · Merged</span>';
       btn.classList.remove("active");
     }
   }
@@ -623,20 +635,216 @@
   }
 
   /* ===================================================================
+   * RENDER — merged view (union across all plans)
+   *
+   * Collects every charge + hotel stop across every plan, dedupes by
+   * (type + placeId|address) so a charger that appears in multiple plans
+   * shows once, and orders them along the road by projecting each stop
+   * onto the vector from the trip origin to the trip destination. Origin
+   * and destination bookend the list.
+   * =================================================================== */
+
+  function _stopIdentity(s) {
+    if (s.placeId) return "place:" + s.placeId;
+    if (s.address) return "addr:" + s.address.trim().toLowerCase();
+    return "coord:" + s.lat.toFixed(3) + "," + s.lng.toFixed(3);
+  }
+  function _projectAlongPath(stop, origin, dest) {
+    // Dot product of (stop - origin) with (dest - origin). No normalization
+    // needed because we only use this for sorting.
+    const dLat = dest.lat - origin.lat;
+    const dLng = dest.lng - origin.lng;
+    return (stop.lat - origin.lat) * dLat + (stop.lng - origin.lng) * dLng;
+  }
+
+  function buildMergedStops() {
+    // Bookends are the same in every plan; take them from the first plan.
+    const firstPlan = DATA.plans[0];
+    const origin = firstPlan.days[0].stops[0];
+    const lastDay = firstPlan.days[firstPlan.days.length - 1];
+    const dest = lastDay.stops[lastDay.stops.length - 1];
+
+    // Stable plan order for chip rendering.
+    const planOrder = PLAN_KEYS.slice();
+    const planLabelByKey = {};
+    DATA.plans.forEach((p) => { planLabelByKey[p.key] = p.label; });
+
+    const merged = new Map();
+    DATA.plans.forEach((plan) => {
+      plan.days.forEach((day) => {
+        day.stops.forEach((s) => {
+          if (s.type !== "charge" && s.type !== "hotel") return;
+          const key = s.type + "|" + _stopIdentity(s);
+          let entry = merged.get(key);
+          if (!entry) {
+            entry = {
+              key,
+              stop: s,
+              plans: new Set(),
+              bookings: [],
+            };
+            merged.set(key, entry);
+          }
+          entry.plans.add(plan.key);
+          if (s.type === "hotel") {
+            entry.bookings.push({
+              planKey: plan.key,
+              planLabel: s.planLabel || planLabelByKey[plan.key] || plan.key,
+              bookingStatus: s.bookingStatus || "PENDING",
+              confNumber: s.confNumber || null,
+              checkIn: s.checkIn || null,
+              checkOut: s.checkOut || null,
+              rate: s.rate || null,
+            });
+          }
+        });
+      });
+    });
+
+    const entries = Array.from(merged.values());
+    entries.forEach((e) => {
+      e.projection = _projectAlongPath(e.stop, origin, dest);
+    });
+    // Tie-break: charge before hotel when projections are essentially equal
+    // (a charger and a hotel at the same address read more naturally in
+    //  "stop to charge, then check in" order).
+    entries.sort((a, b) => {
+      const dp = a.projection - b.projection;
+      if (Math.abs(dp) > 1e-9) return dp;
+      if (a.stop.type === b.stop.type) return 0;
+      return a.stop.type === "charge" ? -1 : 1;
+    });
+
+    return { origin, dest, entries, planOrder, planLabelByKey };
+  }
+
+  function _planChipClassForHotel(entry, planKey) {
+    // Color-code the chip by this plan's booking status for the hotel so a
+    // driver can tell at a glance which hotels along the route already have a
+    // reservation vs which would need a fresh booking if they decide to stop.
+    const b = entry.bookings.find((x) => x.planKey === planKey);
+    if (!b) return "";
+    if (b.bookingStatus === "BOOKED") return " booked";
+    if (b.bookingStatus === "TO BOOK") return " tobook";
+    return " pending";
+  }
+
+  function renderMergedView() {
+    const m = document.getElementById("merged-view");
+    const data = buildMergedStops();
+    if (!data) { m.innerHTML = ""; return; }
+
+    let html = '<div class="merged-cover">';
+    html += '<h1 class="agenda-title">' + escapeHtml(META.title || "Trip") + "</h1>";
+    html += "</div>";
+
+    // Origin bookend.
+    html += renderMergedBookend(data.origin, "origin", "Origin");
+
+    // Sequential charger/hotel entries.
+    data.entries.forEach((entry, idx) => {
+      html += renderMergedEntry(entry, idx + 1, data.planOrder);
+    });
+
+    // Destination bookend.
+    html += renderMergedBookend(data.dest, "dest", "Destination");
+
+    html += '<div class="merged-floor"><button class="btn btn-secondary" id="back-from-merged">← Back to Day View</button></div>';
+    m.innerHTML = html;
+    document.getElementById("back-from-merged").addEventListener("click", () => {
+      state.mode = "day";
+      persist();
+      renderMergedToggle();
+      renderMode();
+    });
+  }
+
+  function renderMergedBookend(s, kind, eyebrow) {
+    let html = '<div class="merged-stop">';
+    html += '<div class="pos"><span class="num ' + kind + '">' +
+            (kind === "origin" ? "S" : "E") + "</span></div>";
+    html += '<div class="merged-body">';
+    html += '<div class="stop-tag">' + escapeHtml(eyebrow) + "</div>";
+    html += '<div class="stop-name">' + escapeHtml(s.name) + "</div>";
+    html += '<div class="stop-addr">' + escapeHtml(s.address) + "</div>";
+    html += '<div class="card-actions" style="margin-top:8px">';
+    if (kind !== "origin") {
+      html += '<a class="btn btn-primary" href="' + dirUrl(s) + '" target="_blank" rel="noopener">Directions →</a>';
+    }
+    html += '<a class="btn btn-secondary" href="' + placeUrl(s) + '" target="_blank" rel="noopener">Open in Maps</a>';
+    html += "</div></div></div>";
+    return html;
+  }
+
+  function renderMergedEntry(entry, idx, planOrder) {
+    const s = entry.stop;
+    let html = '<div class="merged-stop">';
+    html += '<div class="pos"><span class="num ' + s.type + '">' + idx + "</span></div>";
+    html += '<div class="merged-body">';
+    html += '<div class="stop-tag">' + tagLabel(s.type) + "</div>";
+    html += '<div class="stop-name">' + escapeHtml(s.name) + "</div>";
+    html += '<div class="stop-addr">' + escapeHtml(s.address) + "</div>";
+
+    if (s.type === "charge" && s.chargerType) {
+      html += '<div class="stop-detail">' + escapeHtml(s.chargerType) + "</div>";
+    } else if (s.type === "hotel" && s.rating) {
+      let detail = ratingStr(s.rating);
+      if (s.rate) detail += " · " + s.rate;
+      if (s.chargerProx) detail += " · " + s.chargerProx;
+      html += '<div class="stop-detail">' + escapeHtml(detail) + "</div>";
+    }
+
+    // Plan chips — present-in-plan, color-coded for hotels by booking status.
+    html += '<div class="plan-chips">';
+    planOrder.forEach((pk) => {
+      if (!entry.plans.has(pk)) return;
+      let cls = "";
+      if (s.type === "hotel") cls = _planChipClassForHotel(entry, pk);
+      html += '<span class="plan-chip' + cls + '">' + escapeHtml(pk) + "</span>";
+    });
+    html += "</div>";
+
+    const placeHref = placeUrl(s);
+    const dirHref = dirUrl(s);
+    const quality = placeQuality(s);
+    let badge = "";
+    if (quality === "verified") {
+      badge = ' <span class="place-badge good" title="Resolves via Google Place ID">✓</span>';
+    } else if (quality === "fallback") {
+      badge = ' <span class="place-badge warn" title="No Place ID — falls back to name+city query">⚠</span>';
+    }
+
+    html += '<div class="card-actions" style="margin-top:10px">';
+    html += '<a class="btn btn-primary" href="' + dirHref + '" target="_blank" rel="noopener">Directions →</a>';
+    html += '<a class="btn btn-secondary" href="' + placeHref + '" target="_blank" rel="noopener">Open in Maps' + badge + "</a>";
+    html += "</div></div></div>";
+    return html;
+  }
+
+  /* ===================================================================
    * MODE SWITCHING + INIT
    * =================================================================== */
 
   function renderMode() {
     const dayView = document.getElementById("day-view");
     const agendaView = document.getElementById("agenda-view");
+    const mergedView = document.getElementById("merged-view");
     if (state.mode === "agenda") {
       dayView.hidden = true;
       agendaView.hidden = false;
+      mergedView.hidden = true;
       renderAgendaView();
+      window.scrollTo({ top: 0, behavior: "instant" });
+    } else if (state.mode === "merged") {
+      dayView.hidden = true;
+      agendaView.hidden = true;
+      mergedView.hidden = false;
+      renderMergedView();
       window.scrollTo({ top: 0, behavior: "instant" });
     } else {
       dayView.hidden = false;
       agendaView.hidden = true;
+      mergedView.hidden = true;
       renderDayView();
     }
     renderFullMapsToggle();
@@ -661,6 +869,15 @@
     state.mode = state.mode === "agenda" ? "day" : "agenda";
     persist();
     renderAgendaToggle();
+    renderMergedToggle();
+    renderMode();
+  });
+
+  document.getElementById("merged-toggle").addEventListener("click", () => {
+    state.mode = state.mode === "merged" ? "day" : "merged";
+    persist();
+    renderAgendaToggle();
+    renderMergedToggle();
     renderMode();
   });
 
@@ -669,6 +886,7 @@
   renderPlanToggle();
   renderDayToggle();
   renderAgendaToggle();
+  renderMergedToggle();
   renderFullMapsToggle();
   renderDayMapsToggle();
   renderMode();
